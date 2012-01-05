@@ -1516,7 +1516,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 	unsigned long nr_file;
 	isolate_mode_t reclaim_mode = ISOLATE_INACTIVE;
 	unsigned long nr_dirty = 0;
-+	unsigned long nr_writeback = 0;
+	unsigned long nr_writeback = 0;
 
 
 	while (unlikely(too_many_isolated(zone, file, sc))) {
