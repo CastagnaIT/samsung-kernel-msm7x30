@@ -71,3 +71,4 @@ obj-$(CONFIG_VIBETONZ)		+= vibetonz/
 obj-$(CONFIG_GENERIC_BLN) += bln.o
 obj-$(CONFIG_PHANTOM_KP_FILTER) += phantom_kp_filter.o
 obj-$(CONFIG_BLX)    += blx.o
+obj-$(CONFIG_ZERO_JPEG_COMPRESSION) += zerojpegcompression.o
