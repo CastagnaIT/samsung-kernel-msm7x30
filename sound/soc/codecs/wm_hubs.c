@@ -338,7 +338,7 @@ SOC_ENUM("Speaker Mode", speaker_mode),
 	.private_value = (unsigned long)&(struct soc_mixer_control) {
 		.reg = WM8993_LEFT_OUTPUT_VOLUME,
 		.rreg = WM8993_RIGHT_OUTPUT_VOLUME,
-		.shift = 0, .max = 63
+		.shift = 0, .max = 80 /*63*/
 	},
 },
 SOC_DOUBLE_R("Headphone Switch", WM8993_LEFT_OUTPUT_VOLUME,
