@@ -59,6 +59,10 @@ extern void android_usb_switch(int mode);
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
+
 extern int charging_boot;
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 extern bool power_down;
@@ -798,33 +802,74 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 			case CRA_AUDIO_TYPE2:
 				DEBUG_FSA9480("AUDIO_TYPE2 \n");                
 				break;              
-			case CRA_USB:                
-				if(attach & ATTACH){
-					DEBUG_FSA9480("USB --- ATTACH\n");
-					if( disable_vbus_flag )
-					{
-						msm_hsusb_set_vbus_state(1);  // if MTP blocked before. disable_vbus_store
-						disable_vbus_flag = 0;
+			case CRA_USB:           
+#ifdef CONFIG_FORCE_FAST_CHARGE
+				if (force_fast_charge != 0) {
+					if(attach & ATTACH){
+						DEBUG_FSA9480("DEDICATED_CHARGER --- ATTACH\n");
+						curr_ta_status = 1;                    
 					}
-					if(!charging_boot)
-					{
-					DEBUG_FSA9480("USB ---!charging_boot\n");
-						usb_switch_state();
-					} 					
-					curr_usb_status = 1;                    
-					MicroUSBStatus=1;
-					if((!askonstatus))
-						UsbIndicator(1);
-				}
-				else if(attach & DETACH){
-					DEBUG_FSA9480("USB --- DETACH\n");
-					msleep(200);
-					DEBUG_FSA9480("USB --- DETACH work around \n");					
-					curr_usb_status = 0;
-					MicroUSBStatus=0;
-					UsbIndicator(0);
-				}
-                
+					else if(attach & DETACH){
+						DEBUG_FSA9480("DEDICATED_CHARGER --- DETACH\n");
+						curr_ta_status = 0;                    
+					}
+
+				} else {
+
+					if(attach & ATTACH){
+						DEBUG_FSA9480("USB --- ATTACH\n");
+						if( disable_vbus_flag )
+						{
+							msm_hsusb_set_vbus_state(1);  // if MTP blocked before. disable_vbus_store
+							disable_vbus_flag = 0;
+						}
+						if(!charging_boot)
+						{
+						DEBUG_FSA9480("USB ---!charging_boot\n");
+							usb_switch_state();
+						} 					
+						curr_usb_status = 1;                    
+						MicroUSBStatus=1;
+						if((!askonstatus))
+							UsbIndicator(1);
+					}
+					else if(attach & DETACH){
+						DEBUG_FSA9480("USB --- DETACH\n");
+						msleep(200);
+						DEBUG_FSA9480("USB --- DETACH work around \n");					
+						curr_usb_status = 0;
+						MicroUSBStatus=0;
+						UsbIndicator(0);
+					}
+                }
+#else
+					if(attach & ATTACH){
+						DEBUG_FSA9480("USB --- ATTACH\n");
+						if( disable_vbus_flag )
+						{
+							msm_hsusb_set_vbus_state(1);  // if MTP blocked before. disable_vbus_store
+							disable_vbus_flag = 0;
+						}
+						if(!charging_boot)
+						{
+						DEBUG_FSA9480("USB ---!charging_boot\n");
+							usb_switch_state();
+						} 					
+						curr_usb_status = 1;                    
+						MicroUSBStatus=1;
+						if((!askonstatus))
+							UsbIndicator(1);
+					}
+					else if(attach & DETACH){
+						DEBUG_FSA9480("USB --- DETACH\n");
+						msleep(200);
+						DEBUG_FSA9480("USB --- DETACH work around \n");					
+						curr_usb_status = 0;
+						MicroUSBStatus=0;
+						UsbIndicator(0);
+					}
+#endif
+
 				if (attach & (ATTACH|DETACH))
 					batt_restart();                
 
