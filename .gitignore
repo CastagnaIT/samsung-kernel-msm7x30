@@ -94,3 +94,5 @@ arch/arm/boot/compressed/vmlinux
 initramfs
 crea.sh
 creajb.sh
+generai9001.sh
+make2.sh
