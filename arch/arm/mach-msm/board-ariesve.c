@@ -146,7 +146,7 @@ EXPORT_SYMBOL(switch_dev);
 #ifdef CONFIG_BIGMEM_MODE
 #define MSM_PMEM_SF_SIZE	0X1600000
 #else
-#define MSM_PMEM_SF_SIZE	0x1700000 //old value 0x1A00000
+#define MSM_PMEM_SF_SIZE	0x1800000 //old value 0x1A00000
 #endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
