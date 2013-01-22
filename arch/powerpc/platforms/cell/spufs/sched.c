@@ -63,10 +63,6 @@ static struct task_struct *spusched_task;
 static struct timer_list spusched_timer;
 static struct timer_list spuloadavg_timer;
 
-/*
- * Priority of a normal, non-rt, non-niced'd process (aka nice level 0).
- */
-#define NORMAL_PRIO		120
 
 /*
  * Frequency of the spu scheduler tick.  By default we do one SPU scheduler
