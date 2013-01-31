@@ -165,7 +165,7 @@ EXPORT_SYMBOL(switch_dev);
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
 #ifdef CONFIG_BIGMEM_MODE
-#define MSM_PMEM_ADSP_SIZE		0x1E00000
+#define MSM_PMEM_ADSP_SIZE		0X1B00000 //720P video recorder break
 #else
 #define MSM_PMEM_ADSP_SIZE		0x2A05000  //old value 0x2D00000
 #endif
