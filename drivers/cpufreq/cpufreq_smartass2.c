@@ -165,7 +165,7 @@ unsigned int event);
 static
 #endif
 struct cpufreq_governor cpufreq_gov_smartass2 = {
-.name = "SmartAssV2",
+.name = "smartassV2",
 .governor = cpufreq_governor_smartass,
 .max_transition_latency = 9000000,
 .owner = THIS_MODULE,
@@ -659,7 +659,7 @@ NULL,
 
 static struct attribute_group smartass_attr_group = {
 .attrs = smartass_attributes,
-.name = "SmartAss",
+.name = "smartass",
 };
 
 static int cpufreq_governor_smartass(struct cpufreq_policy *new_policy,

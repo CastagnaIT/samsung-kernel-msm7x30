@@ -72,7 +72,7 @@ static int cpufreq_governor_interactivex(struct cpufreq_policy *policy,
 static
 #endif
 struct cpufreq_governor cpufreq_gov_interactivex = {
-	.name = "InteractiveX",
+	.name = "interactiveX",
 	.governor = cpufreq_governor_interactivex,
 #if defined(CONFIG_ARCH_MSM_SCORPION)
 	.max_transition_latency = 8000000,

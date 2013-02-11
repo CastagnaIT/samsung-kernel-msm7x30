@@ -120,7 +120,7 @@ static int cpufreq_governor_smoothass(struct cpufreq_policy *policy,
 static
 #endif
 struct cpufreq_governor cpufreq_gov_smoothass = {
-	.name = "Smoothass",
+	.name = "smoothass",
 	.governor = cpufreq_governor_smoothass,
 	.max_transition_latency = 6000000,
 	.owner = THIS_MODULE,
@@ -460,7 +460,7 @@ static struct attribute * smoothass_attributes[] = {
 
 static struct attribute_group smoothass_attr_group = {
 	.attrs = smoothass_attributes,
-	.name = "Smoothass",
+	.name = "smoothass",
 };
 
 static int cpufreq_governor_smoothass(struct cpufreq_policy *new_policy,
