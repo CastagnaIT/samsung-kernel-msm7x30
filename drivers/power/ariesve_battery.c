@@ -1065,21 +1065,34 @@ static int msm_batt_check_recharging(void)
 #ifdef CONFIG_BLX
 	if (msm_batt_info.battery_voltage <= BATT_RECHARGING_VOLTAGE_1)
 	{
-		if ((get_charginglimit() != MAX_CHARGINGLIMIT) && (get_level_from_fuelgauge() =< (get_charginglimit() - 2))) //Threshold of 2%, to avoid the continuous activation of the charging
+		if ((get_charginglimit() != MAX_CHARGINGLIMIT) && (get_level_from_fuelgauge() <= (get_charginglimit() - 1))) //Threshold of 1%, to avoid the continuous activation of the charging
 		{
-			pr_info("[BATT] %s: Recharging ! (voltage1 = %d)\n", __func__, msm_batt_info.battery_voltage);
+			pr_info("[BATT] %s: Recharging ! (BLX) (voltage1 = %d)\n", __func__, msm_batt_info.battery_voltage);
 			msm_batt_info.batt_recharging = 1;
 			msm_batt_chg_en(START_CHARGING);
 
 			time_after_vol1 = 0;
 			time_after_vol2 = 0;
 			return 1;
+
+		} else if (get_charginglimit() != MAX_CHARGINGLIMIT) {
+			time_after_vol1 = 0;
+			time_after_vol2 = 0;
+			return 0;
 		}
 	}
 	else
-		time_after_vol1 = 0;
-#endif
+	{
+		if (get_charginglimit() != MAX_CHARGINGLIMIT)
+		{
+			time_after_vol1 = 0;
+			time_after_vol2 = 0;
+			return 0;
+		}
+	}
 
+#endif
+	
 	/* check 1st voltage */
 	if (msm_batt_info.battery_voltage <= BATT_RECHARGING_VOLTAGE_1)
 	{
