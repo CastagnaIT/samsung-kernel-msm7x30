@@ -1002,7 +1002,7 @@ static int msm_batt_check_full_charging(int chg_current_adc)
 	}
 
 #ifdef CONFIG_BLX
-	if (get_charginglimit() != MAX_CHARGINGLIMIT && get_level_from_fuelgauge() >= get_charginglimit())
+	if ((get_charginglimit() != MAX_CHARGINGLIMIT) && (get_level_from_fuelgauge() >= get_charginglimit()))
 	{
 		pr_info("[BATT] %s: BLX Battery Life eXtender is enabled! (BLX set to %d)\n", __func__, get_charginglimit());
 		pr_info("[BATT] %s: Fully charged, cut off charging current! (voltage=%d, ICHG=%d)\n",
@@ -1061,6 +1061,24 @@ static int msm_batt_check_recharging(void)
 		time_after_vol2 = 0;
 		return 0;
 	}
+
+#ifdef CONFIG_BLX
+	if (msm_batt_info.battery_voltage <= BATT_RECHARGING_VOLTAGE_1)
+	{
+		if ((get_charginglimit() != MAX_CHARGINGLIMIT) && (get_level_from_fuelgauge() =< (get_charginglimit() - 2))) //Threshold of 2%, to avoid the continuous activation of the charging
+		{
+			pr_info("[BATT] %s: Recharging ! (voltage1 = %d)\n", __func__, msm_batt_info.battery_voltage);
+			msm_batt_info.batt_recharging = 1;
+			msm_batt_chg_en(START_CHARGING);
+
+			time_after_vol1 = 0;
+			time_after_vol2 = 0;
+			return 1;
+		}
+	}
+	else
+		time_after_vol1 = 0;
+#endif
 
 	/* check 1st voltage */
 	if (msm_batt_info.battery_voltage <= BATT_RECHARGING_VOLTAGE_1)
