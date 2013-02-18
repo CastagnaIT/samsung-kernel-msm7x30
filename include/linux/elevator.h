@@ -49,13 +49,12 @@ struct elevator_ops
 
 	elevator_dispatch_fn *elevator_dispatch_fn;
 	elevator_add_req_fn *elevator_add_req_fn;
-<<<<<<< HEAD
+
 	elevator_reinsert_req_fn *elevator_reinsert_req_fn;
 	elevator_is_urgent_fn *elevator_is_urgent_fn;
 
-=======
 	elevator_queue_empty_fn *elevator_queue_empty_fn; // SIO, V(R)
->>>>>>> a0e9101... elevator: added missing elevator_queue_empty_fn
+
 	elevator_activate_req_fn *elevator_activate_req_fn;
 	elevator_deactivate_req_fn *elevator_deactivate_req_fn;
 
