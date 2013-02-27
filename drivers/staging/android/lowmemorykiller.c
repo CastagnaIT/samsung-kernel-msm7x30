@@ -55,6 +55,12 @@ static size_t lowmem_minfree[6] = {
 };
 static int lowmem_minfree_size = 4;
 
+static int lowmem_donotkill_proc_size = 2;
+static char *lowmem_donotkill_proc[10] = {
+	"wfreak.launcher",
+	"tp.nextlauncher",
+};
+
 static unsigned int offlining;
 static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
@@ -181,6 +187,32 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		struct mm_struct *mm;
 		struct signal_struct *sig;
 		int oom_adj;
+		int array_size_dnkp = ARRAY_SIZE(lowmem_donotkill_proc);
+		bool dnkp_stop = false;
+		
+		/* Do not kill system process */
+		if (strcmp(p->comm, "d.process.acore") == 0 ||
+			strcmp(p->comm, "d.process.media") == 0 ||
+			strcmp(p->comm, "putmethod.latin") == 0 ||
+			strcmp(p->comm, "m.android.phone") == 0 ||
+			strcmp(p->comm, "ainfire.supersu") == 0
+		) {
+			//lowmem_print(2, "LMK: skip to kill %d (%s)\n", p->pid, p->comm);
+			continue;
+		}
+
+		/* Do not kill custom process */
+		if (lowmem_donotkill_proc_size < array_size_dnkp)
+			array_size_dnkp = lowmem_donotkill_proc_size;
+		for (i = 0; i < array_size_dnkp; i++) {
+			if (strcmp(p->comm, lowmem_donotkill_proc[i]) == 0) {
+				//lowmem_print(2, "LMK: skip to kill %d (%s)\n", p->pid, p->comm);
+				dnkp_stop = true;
+				break;
+			}
+		}
+		if (dnkp_stop)
+			continue;
 
 		task_lock(p);
 		mm = p->mm;
@@ -255,6 +287,8 @@ module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_array_named(donotkill_proc, lowmem_donotkill_proc, charp, &lowmem_donotkill_proc_size,
+			 S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);
