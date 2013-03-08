@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #ifndef __HAVE_ARCH_STRNICMP
 /**
@@ -755,4 +756,45 @@ void *memchr(const void *s, int c, size_t n)
 	return NULL;
 }
 EXPORT_SYMBOL(memchr);
+#endif
+
+
+#ifndef __HAVE_ARCH_SUBSTR
+/**
+ * substr - Returns a newly constructed string object with its value initialized to a copy of a substring of this object.
+ * @s: The string to be searched
+ * @pos: Position of the first character to be copied as a substring.
+ * @len: Number of characters to include in the substring.
+ */
+char* substr(char *s, int pos, int len)
+{
+    int lenght;
+    char *r;
+    
+    /* If the input is NULL, return NULL */
+    if (s == NULL) return NULL;
+
+    lenght = strlen(s);
+
+    /* If the requested start is off the end of the string, return NULL */
+    if (pos > lenght) return NULL;
+
+    /* If the requested length is 0 or less, return NULL
+     * My mod: return full source string
+     */
+    //if (len <= 0) return NULL;
+    if (len <= 0) return s;
+    
+    r = (char*)kmalloc(len + 1, GFP_KERNEL); /* allow space for null terminator */
+
+    if (r != NULL) {
+        int i = 0;
+        while(s[pos] != '\0' && i < len) {
+            r[i++] = s[pos++];
+        }
+        r[i] = '\0';
+    }
+    return r;
+}
+EXPORT_SYMBOL(substr);
 #endif
