@@ -986,6 +986,9 @@ static int msm_batt_average_chg_current(int chg_current_adc)
 static int msm_batt_check_full_charging(int chg_current_adc)
 {
 	static unsigned int time_after_under_tsh = 0;
+#ifdef CONFIG_BLX
+	static unsigned int time_after_under_tsh_blx = 0;
+#endif
 
 	if (chg_current_adc == 0)
 		return 0;	// not charging
@@ -1004,15 +1007,27 @@ static int msm_batt_check_full_charging(int chg_current_adc)
 #ifdef CONFIG_BLX
 	if ((get_charginglimit() != MAX_CHARGINGLIMIT) && (get_level_from_fuelgauge() >= get_charginglimit()))
 	{
-		pr_info("[BATT] %s: BLX Battery Life eXtender is enabled! (BLX set to %d)\n", __func__, get_charginglimit());
-		pr_info("[BATT] %s: Fully charged, cut off charging current! (voltage=%d, ICHG=%d)\n",
-					__func__, msm_batt_info.battery_voltage, chg_current_adc);
-		msm_batt_info.batt_full_check = 1;
-		msm_batt_info.batt_recharging = 0;
-		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
-		time_after_under_tsh = 0;
-		msm_batt_chg_en(STOP_CHARGING);
-		return 1;
+		if (time_after_under_tsh_blx == 0)
+			time_after_under_tsh_blx = jiffies;
+		else
+		{
+			if (time_after((unsigned long)jiffies, (unsigned long)(time_after_under_tsh_blx + TOTAL_WATING_TIME)))
+			{
+				pr_info("[BATT] %s: BLX Battery Life eXtender is enabled! (BLX set to %d)\n", __func__, get_charginglimit());
+				pr_info("[BATT] %s: Fully charged, cut off charging current! (voltage=%d, ICHG=%d)\n",
+							__func__, msm_batt_info.battery_voltage, chg_current_adc);
+				msm_batt_info.batt_full_check = 1;
+				msm_batt_info.batt_recharging = 0;
+				msm_batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
+				time_after_under_tsh_blx = 0;
+				msm_batt_chg_en(STOP_CHARGING);
+				return 1;
+			}
+		}
+	}
+	else
+	{
+		time_after_under_tsh_blx = 0;
 	}
 #endif
 
