@@ -208,7 +208,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			char *lowmem_donotkill_sysproc_name = substr(lowmem_donotkill_sysproc[i],strlen(lowmem_donotkill_sysproc[i]) +1 - 16, 16);
 
 			if (strcmp(p->comm, lowmem_donotkill_sysproc_name) == 0) {
-				lowmem_print(2, "LMK: skip to kill system process %d (%s)\n", p->pid, p->comm);
+				/*lowmem_print(2, "LMK: skip to kill system process %d (%s)\n", p->pid, p->comm);*/
 				dnkp_stop = true;
 				break;
 			}
@@ -223,7 +223,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			char *lowmem_donotkill_proc_name = substr(lowmem_donotkill_proc[i],strlen(lowmem_donotkill_proc[i]) +1 - 16, 16);
 
 			if (strcmp(p->comm, lowmem_donotkill_proc_name) == 0) {
-				lowmem_print(2, "LMK: skip to kill custom process %d (%s)\n", p->pid, p->comm);
+				/*lowmem_print(2, "LMK: skip to kill custom process %d (%s)\n", p->pid, p->comm);*/
 				dnkp_stop = true;
 				break;
 			}
