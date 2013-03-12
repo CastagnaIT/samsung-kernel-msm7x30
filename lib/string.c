@@ -798,3 +798,69 @@ char* substr(char *s, int pos, int len)
 }
 EXPORT_SYMBOL(substr);
 #endif
+
+#ifndef __HAVE_ARCH_STRLTRIM
+/**
+ * strltrim - Strip whitespace from the beginning of a string
+ * @s: The input string
+ */
+char* strltrim(char *const s)
+{
+	size_t len;
+	char *cur;
+
+ 	if(s && *s) {
+		len = strlen(s);
+		cur = s;
+ 
+		while(*cur && isspace(*cur))
+				++cur, --len;
+
+			if(s != cur)
+				memmove(s, cur, len + 1);
+		}
+ 
+	return s;
+}
+EXPORT_SYMBOL(strltrim);
+#endif
+
+#ifndef __HAVE_ARCH_STRRTRIM
+/**
+ * strrtrim - Strip whitespace from the end of a string
+ * @s: The input string
+ */
+char* strrtrim(char *const s)
+{
+	size_t len;
+	char *cur;
+
+	if(s && *s) {
+		len = strlen(s);
+		cur = s + len - 1;
+
+		while(cur != s && isspace(*cur))
+				--cur, --len;
+
+			cur[isspace(*cur) ? 0 : 1] = '\0';
+		}
+
+	return s;
+}
+EXPORT_SYMBOL(strrtrim);
+#endif
+
+#ifndef __HAVE_ARCH_STRTRIM
+/**
+ * strtrim - Strip whitespace from the beginning and end of a string
+ * @s: The input string
+ */
+char* strtrim(char *const s)
+{
+	strrtrim(s);
+	strltrim(s);
+
+	return s;
+}
+EXPORT_SYMBOL(strtrim);
+#endif
