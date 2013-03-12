@@ -55,7 +55,7 @@ static size_t lowmem_minfree[6] = {
 };
 static int lowmem_minfree_size = 4;
 
-static char *lowmem_donotkill_version = "2.0";
+static char *lowmem_donotkill_version = "2.1";
 static int lowmem_donotkill_proc_size = 4;
 static char *lowmem_donotkill_proc[20] = {
 	"org.adwfreak.launcher",
@@ -201,36 +201,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		int dnk_sp_size = ARRAY_SIZE(lowmem_donotkill_sysproc);
 		bool dnkp_stop = false;
 		
-		/* Do not kill system process */
-		if (lowmem_donotkill_sysproc_size < dnk_sp_size)
-			dnk_sp_size = lowmem_donotkill_sysproc_size;
-		for (i = 0; i < dnk_sp_size; i++) {
-			char *lowmem_donotkill_sysproc_name = substr(lowmem_donotkill_sysproc[i],strlen(lowmem_donotkill_sysproc[i]) +1 - 16, 16);
-
-			if (strcmp(p->comm, lowmem_donotkill_sysproc_name) == 0) {
-				/*lowmem_print(2, "LMK: skip to kill system process %d (%s)\n", p->pid, p->comm);*/
-				dnkp_stop = true;
-				break;
-			}
-		}
-		if (dnkp_stop)
-			continue;
-
-		/* Do not kill custom process */
-		if (lowmem_donotkill_proc_size < dnk_p_size)
-			dnk_p_size = lowmem_donotkill_proc_size;
-		for (i = 0; i < dnk_p_size; i++) {
-			char *lowmem_donotkill_proc_name = substr(lowmem_donotkill_proc[i],strlen(lowmem_donotkill_proc[i]) +1 - 16, 16);
-
-			if (strcmp(p->comm, lowmem_donotkill_proc_name) == 0) {
-				/*lowmem_print(2, "LMK: skip to kill custom process %d (%s)\n", p->pid, p->comm);*/
-				dnkp_stop = true;
-				break;
-			}
-		}
-		if (dnkp_stop)
-			continue;
-
 		task_lock(p);
 		mm = p->mm;
 		sig = p->signal;
@@ -243,6 +213,50 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			task_unlock(p);
 			continue;
 		}
+		
+		/* Do not kill system process */
+		if (lowmem_donotkill_sysproc_size < dnk_sp_size)
+			dnk_sp_size = lowmem_donotkill_sysproc_size;
+		for (i = 0; i < dnk_sp_size; i++) {
+			char *lowmem_donotkill_sysproc_name = substr(lowmem_donotkill_sysproc[i],strlen(lowmem_donotkill_sysproc[i]) +1 - 16, 16);
+			strtrim(lowmem_donotkill_sysproc_name);
+			
+			if (strcmp(p->comm, lowmem_donotkill_sysproc_name) == 0) {
+				/*lowmem_print(2, "LMK: skip to kill system process %d (%s)\n", p->pid, p->comm);*/
+				dnkp_stop = true;
+				kfree(lowmem_donotkill_sysproc_name);
+				break;
+			} else {
+				kfree(lowmem_donotkill_sysproc_name);
+				break;
+			}
+		}
+		if (dnkp_stop) {
+			task_unlock(p);
+			continue;
+		}
+
+		/* Do not kill custom process */
+		if (lowmem_donotkill_proc_size < dnk_p_size)
+			dnk_p_size = lowmem_donotkill_proc_size;
+		for (i = 0; i < dnk_p_size; i++) {
+			char *lowmem_donotkill_proc_name = substr(lowmem_donotkill_proc[i],strlen(lowmem_donotkill_proc[i]) +1 - 16, 16);
+			strtrim(lowmem_donotkill_proc_name);
+			
+			if (strcmp(p->comm, lowmem_donotkill_proc_name) == 0) {
+				/*lowmem_print(2, "LMK: skip to kill custom process %d (%s)\n", p->pid, p->comm);*/
+				dnkp_stop = true;
+				kfree(lowmem_donotkill_proc_name);
+				break;
+			} else {
+				kfree(lowmem_donotkill_proc_name);
+			}
+		}
+		if (dnkp_stop) {
+			task_unlock(p);
+			continue;
+		}
+
 		tasksize = get_mm_rss(mm);
 		task_unlock(p);
 		if (tasksize <= 0)
