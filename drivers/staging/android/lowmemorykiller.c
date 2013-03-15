@@ -55,17 +55,21 @@ static size_t lowmem_minfree[6] = {
 };
 static int lowmem_minfree_size = 4;
 
-static char *lowmem_donotkill_version = "2.1";
-static int lowmem_donotkill_proc_size = 4;
-static char *lowmem_donotkill_proc[20] = {
+static char *lowmem_donotkill_version = "2.2";
+
+static uint32_t lowmem_donotkill_proc = 1;
+static int lowmem_donotkill_proc_names_size = 5;
+static char *lowmem_donotkill_proc_names[20] = {
+	"com.cyanogenmod.trebuchet",
 	"org.adwfreak.launcher",
 	"gtp.nextlauncher",
 	"com.anddoes.launcher",
 	"com.teslacoilsw.launcher",
 };
 
-static int lowmem_donotkill_sysproc_size = 5;
-static char *lowmem_donotkill_sysproc[20] = {
+static uint32_t lowmem_donotkill_sysproc = 1;
+static int lowmem_donotkill_sysproc_names_size = 5;
+static char *lowmem_donotkill_sysproc_names[20] = {
 	"android.process.acore",
 	"android.process.media",
 	"android.process.voicedialer",
@@ -197,9 +201,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		struct mm_struct *mm;
 		struct signal_struct *sig;
 		int oom_adj;
-		int dnk_p_size = ARRAY_SIZE(lowmem_donotkill_proc);
-		int dnk_sp_size = ARRAY_SIZE(lowmem_donotkill_sysproc);
-		bool dnkp_stop = false;
+		int dnk_p_size = ARRAY_SIZE(lowmem_donotkill_proc_names);
+		int dnk_sp_size = ARRAY_SIZE(lowmem_donotkill_sysproc_names);
+		bool dnk_stop = false;
 		
 		task_lock(p);
 		mm = p->mm;
@@ -213,46 +217,49 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			task_unlock(p);
 			continue;
 		}
-		
+
 		/* Do not kill system process */
-		if (lowmem_donotkill_sysproc_size < dnk_sp_size)
-			dnk_sp_size = lowmem_donotkill_sysproc_size;
-		for (i = 0; i < dnk_sp_size; i++) {
-			char *lowmem_donotkill_sysproc_name = substr(lowmem_donotkill_sysproc[i],strlen(lowmem_donotkill_sysproc[i]) +1 - 16, 16);
-			strtrim(lowmem_donotkill_sysproc_name);
-			
-			if (strcmp(p->comm, lowmem_donotkill_sysproc_name) == 0) {
-				/*lowmem_print(2, "LMK: skip to kill system process %d (%s)\n", p->pid, p->comm);*/
-				dnkp_stop = true;
-				kfree(lowmem_donotkill_sysproc_name);
-				break;
-			} else {
-				kfree(lowmem_donotkill_sysproc_name);
-				break;
+		if (lowmem_donotkill_sysproc != 0) {
+			if (lowmem_donotkill_sysproc_names_size < dnk_sp_size)
+				dnk_sp_size = lowmem_donotkill_sysproc_names_size;
+			for (i = 0; i < dnk_sp_size; i++) {
+				char *proc_name = strtrim(lowmem_donotkill_sysproc_names[i]);
+				proc_name = substr(proc_name,strlen(proc_name) +1 - 16, 16);
+
+				if (strcmp(p->comm, proc_name) == 0) {
+					/*lowmem_print(2, "LMK: skip to kill system process %d (%s)\n", p->pid, p->comm);*/
+					dnk_stop = true;
+					kfree(proc_name);
+					break;
+				} else {
+					kfree(proc_name);
+				}
 			}
 		}
-		if (dnkp_stop) {
+		if (dnk_stop) {
 			task_unlock(p);
 			continue;
 		}
 
 		/* Do not kill custom process */
-		if (lowmem_donotkill_proc_size < dnk_p_size)
-			dnk_p_size = lowmem_donotkill_proc_size;
-		for (i = 0; i < dnk_p_size; i++) {
-			char *lowmem_donotkill_proc_name = substr(lowmem_donotkill_proc[i],strlen(lowmem_donotkill_proc[i]) +1 - 16, 16);
-			strtrim(lowmem_donotkill_proc_name);
-			
-			if (strcmp(p->comm, lowmem_donotkill_proc_name) == 0) {
-				/*lowmem_print(2, "LMK: skip to kill custom process %d (%s)\n", p->pid, p->comm);*/
-				dnkp_stop = true;
-				kfree(lowmem_donotkill_proc_name);
-				break;
-			} else {
-				kfree(lowmem_donotkill_proc_name);
+		if (lowmem_donotkill_proc != 0) {
+			if (lowmem_donotkill_proc_names_size < dnk_p_size)
+				dnk_p_size = lowmem_donotkill_proc_names_size;
+			for (i = 0; i < dnk_p_size; i++) {
+				char *proc_name = strtrim(lowmem_donotkill_proc_names[i]);
+				proc_name = substr(proc_name,strlen(proc_name) +1 - 16, 16);
+
+				if (strcmp(p->comm, proc_name) == 0) {
+					/*lowmem_print(2, "LMK: skip to kill custom process %d (%s)\n", p->pid, p->comm);*/
+					dnk_stop = true;
+					kfree(proc_name);
+					break;
+				} else {
+					kfree(proc_name);
+				}
 			}
 		}
-		if (dnkp_stop) {
+		if (dnk_stop) {
 			task_unlock(p);
 			continue;
 		}
@@ -317,10 +324,12 @@ module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 module_param_named(donotkill_version, lowmem_donotkill_version, charp, S_IRUGO);
-module_param_array_named(donotkill_proc, lowmem_donotkill_proc, charp, &lowmem_donotkill_proc_size,
+module_param_array_named(donotkill_proc_names, lowmem_donotkill_proc_names, charp, &lowmem_donotkill_proc_names_size,
 			 S_IRUGO | S_IWUSR);
-module_param_array_named(donotkill_sysproc, lowmem_donotkill_sysproc, charp, &lowmem_donotkill_sysproc_size,
+module_param_named(donotkill_proc, lowmem_donotkill_proc, uint, S_IRUGO | S_IWUSR);
+module_param_array_named(donotkill_sysproc_names, lowmem_donotkill_sysproc_names, charp, &lowmem_donotkill_sysproc_names_size,
 			 S_IRUGO | S_IWUSR);
+module_param_named(donotkill_sysproc, lowmem_donotkill_sysproc, uint, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);
