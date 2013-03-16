@@ -766,7 +766,7 @@ EXPORT_SYMBOL(memchr);
  * @pos: Position of the first character to be copied as a substring.
  * @len: Number of characters to include in the substring.
  */
-char* substr(char *s, int pos, int len)
+char* substr(const char *s, int pos, int len)
 {
     int lenght;
     char *r;
@@ -783,7 +783,7 @@ char* substr(char *s, int pos, int len)
      * My mod: return full source string
      */
     //if (len <= 0) return NULL;
-    if (len <= 0) return s;
+    if (len <= 0) return (char *) s;
     
     r = (char*)kmalloc(len + 1, GFP_KERNEL); /* allow space for null terminator */
 

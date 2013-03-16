@@ -116,7 +116,7 @@ extern void * memchr(const void *,int,__kernel_size_t);
 #endif
 
 #ifndef __HAVE_ARCH_SUBSTR
-extern char * substr(char *s, int pos, int len);
+extern char * substr(const char *s, int pos, int len);
 #endif
 
 extern char *kstrdup(const char *s, gfp_t gfp);
