@@ -55,7 +55,7 @@ static size_t lowmem_minfree[6] = {
 };
 static int lowmem_minfree_size = 4;
 
-static char *lowmem_donotkill_version = "2.2";
+static char *lowmem_donotkill_version = "2.3";
 
 static uint32_t lowmem_donotkill_proc = 1;
 static int lowmem_donotkill_proc_names_size = 5;
@@ -68,10 +68,9 @@ static char *lowmem_donotkill_proc_names[20] = {
 };
 
 static uint32_t lowmem_donotkill_sysproc = 1;
-static int lowmem_donotkill_sysproc_names_size = 5;
+static int lowmem_donotkill_sysproc_names_size = 4;
 static char *lowmem_donotkill_sysproc_names[20] = {
 	"android.process.acore",
-	"android.process.media",
 	"android.process.voicedialer",
 	"android.inputmethod.latin",
 	"com.android.phone",
@@ -223,7 +222,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			if (lowmem_donotkill_sysproc_names_size < dnk_sp_size)
 				dnk_sp_size = lowmem_donotkill_sysproc_names_size;
 			for (i = 0; i < dnk_sp_size; i++) {
-				char *proc_name = strtrim(lowmem_donotkill_sysproc_names[i]);
+				char *proc_name = strim(lowmem_donotkill_sysproc_names[i]);
 				proc_name = substr(proc_name,strlen(proc_name) +1 - 16, 16);
 
 				if (strcmp(p->comm, proc_name) == 0) {
@@ -246,7 +245,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			if (lowmem_donotkill_proc_names_size < dnk_p_size)
 				dnk_p_size = lowmem_donotkill_proc_names_size;
 			for (i = 0; i < dnk_p_size; i++) {
-				char *proc_name = strtrim(lowmem_donotkill_proc_names[i]);
+				char *proc_name = strim(lowmem_donotkill_proc_names[i]);
 				proc_name = substr(proc_name,strlen(proc_name) +1 - 16, 16);
 
 				if (strcmp(p->comm, proc_name) == 0) {
