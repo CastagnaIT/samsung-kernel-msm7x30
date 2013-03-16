@@ -857,35 +857,9 @@ EXPORT_SYMBOL(strrtrim);
  */
 char* strtrim(char *s)
 {
-	size_t len = 0;
-    char *frontp = s - 1;
-    char *endp = NULL;
-
-    if( s == NULL )
-            return NULL;
-
-    if( s[0] == '\0' )
-            return s;
-
-    len = strlen(s);
-    endp = s + len;
-
-    while( isspace(*(++frontp)) );
-    while( isspace(*(--endp)) && endp != frontp );
-
-    if( s + len - 1 != endp )
-            *(endp + 1) = '\0';
-    else if( frontp != s &&  endp == frontp )
-            *s = '\0';
-
-    endp = s;
-    if( frontp != s )
-    {
-            while( *frontp ) *endp++ = *frontp++;
-            *endp = '\0';
-    }
-
-    return s;
+	s = strrtrim(s);
+	s = strltrim(s);
+	return s;
 }
 EXPORT_SYMBOL(strtrim);
 #endif
