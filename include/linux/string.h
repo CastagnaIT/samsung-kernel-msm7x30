@@ -116,16 +116,16 @@ extern void * memchr(const void *,int,__kernel_size_t);
 #endif
 
 #ifndef __HAVE_ARCH_SUBSTR
-extern char * substr(const char *s, int pos, int len);
+extern char * substr(char *s, int pos, int len);
 #endif
 #ifndef __HAVE_ARCH_STRTRIM
-extern char * strtrim(char *s);
+extern char * strtrim(char *const s);
 #endif
 #ifndef __HAVE_ARCH_STRLTRIM
-extern char * strltrim(char *s);
+extern char * strltrim(char *const s);
 #endif
 #ifndef __HAVE_ARCH_STRRTRIM
-extern char * strrtrim(char *s);
+extern char * strrtrim(char *const s);
 #endif
 
 extern char *kstrdup(const char *s, gfp_t gfp);

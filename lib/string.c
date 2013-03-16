@@ -766,7 +766,7 @@ EXPORT_SYMBOL(memchr);
  * @pos: Position of the first character to be copied as a substring.
  * @len: Number of characters to include in the substring.
  */
-char* substr(const char *s, int pos, int len)
+char* substr(char *s, int pos, int len)
 {
     int lenght;
     char *r;
@@ -783,7 +783,7 @@ char* substr(const char *s, int pos, int len)
      * My mod: return full source string
      */
     //if (len <= 0) return NULL;
-    if (len <= 0) return (char *) s;
+    if (len <= 0) return s;
     
     r = (char*)kmalloc(len + 1, GFP_KERNEL); /* allow space for null terminator */
 
@@ -804,7 +804,7 @@ EXPORT_SYMBOL(substr);
  * strltrim - Strip whitespace from the beginning of a string
  * @s: The input string
  */
-char* strltrim(char *s)
+char* strltrim(char *const s)
 {
 	size_t len;
 	char *cur;
@@ -830,7 +830,7 @@ EXPORT_SYMBOL(strltrim);
  * strrtrim - Strip whitespace from the end of a string
  * @s: The input string
  */
-char* strrtrim(char *s)
+char* strrtrim(char *const s)
 {
 	size_t len;
 	char *cur;
@@ -855,10 +855,11 @@ EXPORT_SYMBOL(strrtrim);
  * strtrim - Strip whitespace from the beginning and end of a string
  * @s: The input string
  */
-char* strtrim(char *s)
+char* strtrim(char *const s)
 {
-	s = strrtrim(s);
-	s = strltrim(s);
+	strrtrim(s);
+	strltrim(s);
+
 	return s;
 }
 EXPORT_SYMBOL(strtrim);
