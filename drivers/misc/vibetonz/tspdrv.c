@@ -36,6 +36,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/timer.h>
 #include <linux/fs.h>
 #include <linux/version.h>
@@ -108,6 +109,7 @@ static struct regulator *vreg_ldo19;
 
 static int max_timeout = 5000;
 static int vibrator_value = 0;
+static int pwmvalue = 121;
 
 struct pwm_device	*vib_pwm;
 
@@ -120,7 +122,7 @@ static int set_vibetonz(int timeout) {
 		wake_lock(&vib_wake_lock);
 		//printk("[VIBETONZ] FIXED ENABLE\n");
 		ImmVibeSPI_ForceOut_AmpEnable(0);
-		vibe_set_pwm_freq(121);
+		vibe_set_pwm_freq(pwmvalue);
 	}
 
 	vibrator_value = timeout;
@@ -276,11 +278,59 @@ static ssize_t immTest_store(struct device *dev, struct device_attribute *attr, 
 static DEVICE_ATTR(immTest, S_IRUGO | S_IWUSR, immTest_show, immTest_store);
 #endif /* VIBE_TUNING */
 
+static ssize_t pwmvalue_intensity_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int count;
+	count = sprintf(buf,"%d\n", pwmvalue);
+	return count;
+}
+static ssize_t pwmvalue_intensity_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	char *after;
+	unsigned long value = simple_strtoul(buf, &after, 10);
+
+   	if(0 <= value) {
+   	if(value <= 127) {
+		pwmvalue = (int) value;
+		vibe_set_pwm_freq((int) value);
+	}
+	}
+	return size;
+}
+static DEVICE_ATTR(pwmvalue_intensity, S_IRUGO | S_IWUSR, pwmvalue_intensity_show, pwmvalue_intensity_store);
+
+static ssize_t pwmvalue_intensity_test_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int count;
+	count = sprintf(buf,"%d\n", pwmvalue);
+	return count;
+}
+static ssize_t pwmvalue_intensity_test_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	char *after;
+	unsigned long value = simple_strtoul(buf, &after, 10);
+
+   	if(0 <= value) {
+   	if(value <= 127) {
+		pwmvalue = (int) value;
+		ImmVibeSPI_ForceOut_AmpEnable(0);
+		vibe_set_pwm_freq((int) value);
+
+		mdelay(500);
+
+		ImmVibeSPI_ForceOut_AmpDisable(0);
+	}
+	}
+	return size;
+}
+static DEVICE_ATTR(pwmvalue_intensity_test, S_IRUGO | S_IWUSR, pwmvalue_intensity_test_show, pwmvalue_intensity_test_store);
+
 
 int vibe_init(void)
 {
     int nRet, i;   /* initialized below */
 	int rc;
+	struct kobject *vibetonz_kobj;
 
     DbgOut((KERN_INFO "tspdrv: init_module.\n"));
 
@@ -391,7 +441,30 @@ int vibe_init(void)
 
 	if (device_create_file(immTest_test, &dev_attr_immTest) < 0)
 		pr_err("Failed to create device file(%s)!\n", dev_attr_immTest.attr.name);
+/*
+	pwmvalue_intensity_intensity = device_create(vibetonz_class, NULL, 0, NULL, "pwmvalue_intensity");
+	if (IS_ERR(pwmvalue_intensity_intensity))
+		pr_err("Failed to create device(switch)!\n");
+
+	if (device_create_file(pwmvalue_intensity_intensity, &dev_attr_pwmvalue_intensity) < 0)
+		pr_err("Failed to create device file(%s)!\n", dev_attr_pwmvalue_intensity.attr.name);*/
 #endif
+
+    
+    vibetonz_kobj = kobject_create_and_add("vibetonz", kernel_kobj);
+     if (!vibetonz_kobj)
+                return -ENOMEM;
+
+ 	nRet = sysfs_create_file(vibetonz_kobj, &dev_attr_pwmvalue_intensity.attr);
+    if (nRet) {
+                printk(KERN_ERR "sysfs_create_file failed: %d\n", nRet);
+                return nRet;
+	}
+	nRet = sysfs_create_file(vibetonz_kobj, &dev_attr_pwmvalue_intensity_test.attr);
+    if (nRet) {
+                printk(KERN_ERR "sysfs_create_file failed: %d\n", nRet);
+                return nRet;
+	}
 
     vibetonz_start();
 
