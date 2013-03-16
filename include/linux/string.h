@@ -118,15 +118,6 @@ extern void * memchr(const void *,int,__kernel_size_t);
 #ifndef __HAVE_ARCH_SUBSTR
 extern char * substr(char *s, int pos, int len);
 #endif
-#ifndef __HAVE_ARCH_STRTRIM
-extern char * strtrim(char *const s);
-#endif
-#ifndef __HAVE_ARCH_STRLTRIM
-extern char * strltrim(char *const s);
-#endif
-#ifndef __HAVE_ARCH_STRRTRIM
-extern char * strrtrim(char *const s);
-#endif
 
 extern char *kstrdup(const char *s, gfp_t gfp);
 extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
