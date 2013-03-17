@@ -160,6 +160,7 @@ static struct setting_table *p22Gamma_set[] = {
 };
 
 struct setting_table *p19Gamma_set[] = {
+/*
     NULL,// display off
 	s6e63m0_19gamma_30cd,// 1
 	s6e63m0_19gamma_40cd,
@@ -185,6 +186,32 @@ struct setting_table *p19Gamma_set[] = {
 	s6e63m0_19gamma_280cd,
 	s6e63m0_19gamma_290cd,
 	s6e63m0_19gamma_300cd,//24
+*/
+	s6e63m0_19gamma_00cd, //0
+    s6e63m0_19gamma_10cd, //auto level1 //manual min
+    s6e63m0_19gamma_10cd,
+    s6e63m0_19gamma_20cd,
+    s6e63m0_19gamma_30cd,
+    s6e63m0_19gamma_40cd, //5 //auto level2
+    s6e63m0_19gamma_50cd,
+    s6e63m0_19gamma_60cd,
+    s6e63m0_19gamma_70cd, //manual medium
+    s6e63m0_19gamma_80cd,
+    s6e63m0_19gamma_90cd, //10 //auto level3
+    s6e63m0_19gamma_100cd,
+    s6e63m0_19gamma_120cd,
+    s6e63m0_19gamma_140cd,
+    s6e63m0_19gamma_160cd,
+    s6e63m0_19gamma_180cd, //15
+    s6e63m0_19gamma_200cd, //auto level4
+    s6e63m0_19gamma_210cd,
+    s6e63m0_19gamma_220cd,
+    s6e63m0_19gamma_230cd,
+    s6e63m0_19gamma_240cd, //20
+    s6e63m0_19gamma_260cd,
+    s6e63m0_19gamma_280cd,
+    s6e63m0_19gamma_290cd,
+    s6e63m0_19gamma_300cd, //24 //auto level5 //manual max
 };
 
 #if defined(CONFIG_MACH_APACHE)
