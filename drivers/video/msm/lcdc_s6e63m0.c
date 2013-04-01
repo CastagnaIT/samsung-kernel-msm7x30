@@ -71,8 +71,8 @@ static int spi_cs;
 static int spi_sclk;
 static int spi_sdi;
 static int lcd_reset;
-static int delayed_backlight_value = -1;
-static boolean First_Disp_Power_On = FALSE;
+static int delayed_backlight_value;
+static int lcd_bl;
 static struct msm_panel_common_pdata *lcdc_s6e63m0_pdata;
 static struct device *lcd_dev;
 extern struct class *sec_class;
@@ -91,7 +91,7 @@ static int on_19gamma = 0;
 #if defined(CONFIG_MACH_APACHE)
 extern int board_hw_revision;
 #endif
-#define DEFAULT_LCD_ON_BACKLIGHT_LEVEL 23
+#define DEFAULT_LCD_ON_BACKLIGHT_LEVEL 16
 
 static DEFINE_SPINLOCK(lcd_ctrl_irq_lock);
 static DEFINE_SPINLOCK(bl_ctrl_lock);
@@ -608,6 +608,14 @@ static void lcdc_s6e63m0_disp_on(void)
     if (s6e63m0_state.disp_powered_up && !s6e63m0_state.display_on) {
         //mdelay(20);
         S6E63M0_WRITE_LIST(power_on_sequence);
+
+
+        lcdc_s6e63m0_set_brightness(delayed_backlight_value);
+
+		msleep(120);
+
+		lcdc_s6e63m0_write(disp_on_sequence);
+
         s6e63m0_state.display_on = TRUE;
     }
 }
@@ -629,6 +637,8 @@ static int lcdc_s6e63m0_get_gamma_value_from_bl(int bl)
 
 static void lcdc_s6e63m0_set_brightness(int level)
 {
+
+	lcd_bl = level;
 
 #if defined(CONFIG_MACH_APACHE)
 
@@ -664,7 +674,6 @@ static void lcdc_s6e63m0_set_brightness(int level)
     }
 #endif
 
-    //lcdc_s6e63m0_write(display_on_seq);
     DPRINT("brightness: %d on_19gamma: %d\n",level,on_19gamma);
 }
 
@@ -894,18 +903,13 @@ static int lcdc_s6e63m0_panel_on(struct platform_device *pdev)
         lcdc_s6e63m0_spi_init();    /* LCD needs SPI */
         lcdc_s6e63m0_disp_powerup();
         lcdc_s6e63m0_disp_on();
+
+		if(delayed_backlight_value != lcd_bl)
+		{
+			lcdc_s6e63m0_set_brightness(delayed_backlight_value);
+		}
+
         s6e63m0_state.disp_initialized = TRUE;
-    }
-
-    if(!First_Disp_Power_On)
-    {
-    	First_Disp_Power_On = TRUE;
-	lcdc_s6e63m0_set_brightness(DEFAULT_LCD_ON_BACKLIGHT_LEVEL);	
-    }
-
-    if(delayed_backlight_value != -1) {
-        lcdc_s6e63m0_set_brightness(delayed_backlight_value);
-        DPRINT("delayed backlight on %d\n", delayed_backlight_value);
     }
 
     return 0;
@@ -917,6 +921,20 @@ static int lcdc_s6e63m0_panel_off(struct platform_device *pdev)
     unsigned long irqflags;
 
     DPRINT("start %s\n", __func__);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct fb_info *info;
+	unsigned short *bits;
+	DPRINT("%s : Draw Black screen.\n", __func__);
+	info = registered_fb[0];
+	bits = (unsigned short *)(info->screen_base);
+#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+	memset(bits, 0x00, 800*480*4*3); /*info->var.xres*info->var.yres*/
+#else
+	memset(bits, 0x00, 800*480*4*2);
+#endif
+
+#endif
 
     if (s6e63m0_state.disp_powered_up && s6e63m0_state.display_on) {
         if (!lcdc_s6e63m0_get_ldi_state()) {
@@ -944,48 +962,26 @@ static void lcdc_s6e63m0_set_backlight(struct msm_fb_data_type *mfd)
     int gamma_level = 0;
     int i;
 
-#if 1
-    if(bl_level > 0){
-        lcdc_s6e63m0_write(disp_on_sequence);
-        if(bl_level < MIN_BRIGHTNESS_VALUE) {
-            /* dimming set */
-            gamma_level = brt_table[1].driver_level;
-        } else if (bl_level == MAX_BRIGHTNESS_VALUE) {
-            /* max brightness set */
-            gamma_level = brt_table[MAX_BRT_STAGE-1].driver_level;
-        } else {
-            for(i = 0; i < MAX_BRT_STAGE; i++) {
-                if(bl_level <= brt_table[i].platform_level ) {
-                    gamma_level = brt_table[i].driver_level;
-                    break;
-                }
-            }
-        }
-    } else {
-        lcdc_s6e63m0_write(disp_off_sequence);
-        DPRINT("bl: %d \n",bl_level);
-        return;
-    }
-
-#else
     gamma_level = lcdc_s6e63m0_get_gamma_value_from_bl(bl_level);
-#endif
 
-    // LCD should be turned on prior to backlight
-    if(s6e63m0_state.disp_initialized == FALSE && gamma_level > 0){
-        delayed_backlight_value = gamma_level;
-        DPRINT("delayed_backlight_value = gamma_level\n");
-        return;
+
+	if ((s6e63m0_state.disp_initialized) && (s6e63m0_state.disp_powered_up) && (s6e63m0_state.display_on))
+	{
+
+		if(lcd_bl != gamma_level)
+		{
+			DPRINT("bl: %d, gamma: %d\n",bl_level,gamma_level);
+			lcdc_s6e63m0_set_brightness(gamma_level);
+#ifdef CONFIG_USES_ACL
+			if(acl_enable)lcdc_s6e63m0_set_acl_parameter(gamma_level);
+			current_gamma_lvl = gamma_level;
+#endif
+		}
+
     } else {
-        delayed_backlight_value = -1;
+		delayed_backlight_value = gamma_level;
     }
 
-    DPRINT("bl: %d, gamma: %d\n",bl_level,gamma_level);
-    lcdc_s6e63m0_set_brightness(gamma_level);
-#ifdef CONFIG_USES_ACL
-    if(acl_enable)lcdc_s6e63m0_set_acl_parameter(gamma_level);
-        current_gamma_lvl = gamma_level;
-#endif
 }
 
 static int __devinit lcdc_s6e63m0_probe(struct platform_device *pdev)
@@ -1017,6 +1013,9 @@ static int __devinit lcdc_s6e63m0_probe(struct platform_device *pdev)
             pr_err("Failed to create device file(%s)!\n", dev_attr_lcdtype_file_cmd.attr.name);
         if(device_create_file(lcd_dev, &dev_attr_lcd_power) < 0)
             pr_err("Failed to create device file(%s)!\n", dev_attr_lcd_power.attr.name); 
+
+		lcd_bl = DEFAULT_LCD_ON_BACKLIGHT_LEVEL;
+		delayed_backlight_value = lcd_bl;
 
         lcdc_s6e63m0_set_ldi_state(1);
 #ifdef CONFIG_USES_ACL
