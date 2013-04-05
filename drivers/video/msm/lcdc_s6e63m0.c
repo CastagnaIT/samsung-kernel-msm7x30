@@ -323,80 +323,12 @@ static void spi_init(void)
 
 }
 
-static void lcdc_s6e63m0_vreg_config(int on)
-{
-#if 0
-    int rc = 0;
-    struct vreg *vreg_ldo15, *vreg_ldo17 = NULL;
-    
-    // VREG_LCD_2.8V
-    vreg_ldo15 = vreg_get(NULL, "gp6");
-    if (IS_ERR(vreg_ldo15)) {
-        rc = PTR_ERR(vreg_ldo15);
-        pr_err("%s: gp6 vreg get failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-    
-    // VREG_LCD_1.8V
-    vreg_ldo17 = vreg_get(NULL, "gp11");
-    if (IS_ERR(vreg_ldo17)) {
-        rc = PTR_ERR(vreg_ldo17);
-        pr_err("%s: gp9 vreg get failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-
-    rc = vreg_set_level(vreg_ldo15, 2850);
-    if (rc) {
-        pr_err("%s: vreg LDO15 set level failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-
-    rc = vreg_set_level(vreg_ldo17, 1800);
-    if (rc) {
-        pr_err("%s: vreg LDO17 set level failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-
-    if (on)
-        rc = vreg_enable(vreg_ldo17);
-    else
-        rc = vreg_disable(vreg_ldo17);
-
-    if (rc) {
-        pr_err("%s: LDO17 vreg enable failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-
-    if (on)
-        rc = vreg_enable(vreg_ldo15);
-    else
-        rc = vreg_disable(vreg_ldo15);
-
-    if (rc) {
-        pr_err("%s: LDO15 vreg enable failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-
-    mdelay(5);        /* ensure power is stable */
-
-    return rc;
-#endif    
-}
-
 static void s6e63m0_disp_powerup(void)
 {
 	DPRINT("start %s\n", __func__);	
 
 	if (!s6e63m0_state.disp_powered_up && !s6e63m0_state.display_on) {
 		 /* Reset the hardware first */
-		lcdc_s6e63m0_vreg_config(1);
-        
         gpio_tlmm_config(GPIO_CFG(129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
         
 		gpio_set_value(lcd_reset, 1);
@@ -418,7 +350,7 @@ static void s6e63m0_disp_powerdown(void)
     /* Reset Assert */
     gpio_tlmm_config(GPIO_CFG(129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
     gpio_set_value(lcd_reset, 0);        
-    lcdc_s6e63m0_vreg_config(0);
+
     mdelay(10);        /* ensure power is stable */
 
 	LCD_CSX_LOW
