@@ -576,9 +576,9 @@ static int lcdc_s6e63m0_panel_off(struct platform_device *pdev)
 }
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-#define CANDELA_TABLE_SIZE 24
+#define CANDELA_TABLE_SIZE 26
 static const unsigned int candela_table[CANDELA_TABLE_SIZE] = {
-	 30,  40,  50,  60,  70,  80,  90, 100, 110, 120,
+	 10, 20, 30,  40,  50,  60,  70,  80,  90, 100, 110, 120,
 	130, 140, 150, 160, 170, 180, 190, 200, 210, 220,
 	230, 240, 250, 300
 };
