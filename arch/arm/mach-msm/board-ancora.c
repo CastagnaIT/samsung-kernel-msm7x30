@@ -149,7 +149,11 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#define MSM_PMEM_SF_SIZE	0x1A00000
+#ifdef CONFIG_BIGMEM_MODE
+#define MSM_PMEM_SF_SIZE	0X1600000
+#else
+#define MSM_PMEM_SF_SIZE	0x1800000 //old value 0x1A00000
+#endif
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
@@ -158,13 +162,17 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x2800000
+#ifdef CONFIG_BIGMEM_MODE
+#define MSM_PMEM_ADSP_SIZE		0X1B00000 //720P video recorder break
+#else
+#define MSM_PMEM_ADSP_SIZE		0x2A05000  //old value 0x2D00000
+#endif
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
-#define MSM_PMEM_AUDIO_SIZE		0x200000
+#define MSM_PMEM_AUDIO_SIZE		0x80000 //old value 0x200000
 
 #define PMIC_GPIO_INT		27
-#define PMIC_VREG_WLAN_LEVEL	2900
+#define PMIC_VREG_WLAN_LEVEL	2100
 #define PMIC_GPIO_SD_DET	36
 #define PMIC_GPIO_SDC4_EN_N	17  /* PMIC GPIO Number 18 */
 #define PMIC_GPIO_HDMI_5V_EN_V3 32  /* PMIC GPIO for V3 H/W */
@@ -1946,23 +1954,23 @@ static struct snd_set_ampgain init_ampgain[] = {
 #else
 static struct snd_set_ampgain init_ampgain[] = {
 	[0] = {
-		.in1_gain = 2,
-		.in2_gain = 2,
-		.hp_att = 26,
+		.in1_gain = 5,
+		.in2_gain = 5,
+		.hp_att = 31,
 		.hp_gainup = 0,
 		.sp_att = 31,
 		.sp_gainup = 0,
 	},
 	[1] = { /* [HSS] headset_call, speaker_call */
-		.in1_gain = 2,
-		.in2_gain = 0,
-		.hp_att = 14,
+		.in1_gain = 5,
+		.in2_gain = 2,
+		.hp_att = 31,
 		.hp_gainup = 0,
 		.sp_att = 31,
 		.sp_gainup = 0,
 	},
 	[2] = { /* [HSS] headset_speaker */
-		.in1_gain = 5,
+		.in1_gain = 6,
 		.in2_gain = 2,
 		.hp_att = 13,
 		.hp_gainup = 0,
@@ -6372,7 +6380,7 @@ static struct mmc_platform_data msm7x30_sdc1_data = {
 };
 #else
 static struct mmc_platform_data msm7x30_sdc1_data = {
-	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_27_28 | MMC_VDD_28_29,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_20_21,
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 	.status	        = wlan_status,
