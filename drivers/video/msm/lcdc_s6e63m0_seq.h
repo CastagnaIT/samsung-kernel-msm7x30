@@ -191,8 +191,15 @@ static struct setting_table power_off_sequence[] = {
 #define POWER_ON_SEQ_S6E63M0	(int)(sizeof(power_on_sequence_S6E63M0)/sizeof(struct setting_table))
 #define POWER_OFF_SEQ	(int)(sizeof(power_off_sequence)/sizeof(struct setting_table))
 
-
-static struct setting_table S6E63M0_GAMMA_22_10_dimming[] = {
+static struct setting_table S6E63M0_GAMMA_22_00_dimming[] = {
+ {0xFA, 22, {
+	0x02, 0x18, 0x08, 0x24, 0xA1, 0x51, 0x7B, 0xCE,
+	0xCB, 0xC2, 0xC7, 0xCB, 0xBC, 0xDA, 0xDD, 0xD3,
+	0x00, 0x3B, 0x00, 0x3A, 0x00, 0x4E, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+}, 0 },
+ };
+static struct setting_table S6E63M0_GAMMA_22_10[] = {
  {0xFA, 22, {
 	0x02, 0x18, 0x08, 0x24, 0xA1, 0x51, 0x7B, 0xCE,
 	0xCB, 0xC2, 0xC7, 0xCB, 0xBC, 0xDA, 0xDD, 0xD3,
@@ -200,7 +207,7 @@ static struct setting_table S6E63M0_GAMMA_22_10_dimming[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }, 0 },
  };
-static struct setting_table S6E63M0_GAMMA_22_20_dimming[] = {
+static struct setting_table S6E63M0_GAMMA_22_20[] = {
  {0xFA, 22, {
 	0x02, 0x18, 0x08, 0x24, 0xA1, 0x51, 0x7B, 0xCE,
 	0xCB, 0xC2, 0xC7, 0xCB, 0xBC, 0xDA, 0xDD, 0xD3,
@@ -208,7 +215,7 @@ static struct setting_table S6E63M0_GAMMA_22_20_dimming[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }, 0 },
  };
-static struct setting_table S6E63M0_GAMMA_22_30_dimming[] = {
+static struct setting_table S6E63M0_GAMMA_22_30_original_stock_dimming[] = {
  {0xFA, 22, {
  	0x02, 0x18, 0x08, 0x24, 0xA1, 0x51, 0x7B, 0xCE, 
 	0xCB, 0xC2, 0xC7, 0xCB, 0xBC, 0xDA, 0xDD, 0xD3, 
@@ -301,9 +308,10 @@ static struct setting_table S6E63M0_GAMMA_22_300[] = {
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
 static struct setting_table *lcd_s6e63m0_table_22gamma[] =  {
-	S6E63M0_GAMMA_22_10_dimming,
-	S6E63M0_GAMMA_22_20_dimming,
-	S6E63M0_GAMMA_22_30_dimming,
+	S6E63M0_GAMMA_22_00_dimming,
+	S6E63M0_GAMMA_22_10,
+	S6E63M0_GAMMA_22_20,
+	S6E63M0_GAMMA_22_30_original_stock_dimming,
 	S6E63M0_GAMMA_22_40,
 	S6E63M0_GAMMA_22_50,
 	S6E63M0_GAMMA_22_60,
@@ -330,7 +338,7 @@ static struct setting_table *lcd_s6e63m0_table_22gamma[] =  {
 };
 #else
 static struct setting_table *lcd_s6e63m0_table_22gamma[] =  {
-	S6E63M0_GAMMA_22_30_dimming,
+	S6E63M0_GAMMA_22_30_original_stock_dimming,
 	S6E63M0_GAMMA_22_40,
 	S6E63M0_GAMMA_22_50,
 	S6E63M0_GAMMA_22_60,
