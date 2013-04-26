@@ -78,7 +78,9 @@
 #include <linux/platform_data/qcom_crypto_device.h>
 
 #include "devices.h"
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include "devices-msm7x30.h"
+#endif
 #include "timer.h"
 #ifdef CONFIG_USB_G_ANDROID
 #include <linux/usb/android.h>
@@ -1664,24 +1666,24 @@ static struct platform_device amp_i2c_gpio_device = {
 #ifdef CONFIG_SENSORS_YDA165
 static struct snd_set_ampgain init_ampgain[] = {
 	[0] = {
-		.in1_gain = 2,
-		.in2_gain = 2,
+		.in1_gain = 5,
+		.in2_gain = 5,
 		.hp_att = 31,
 		.hp_gainup = 0,
 		.sp_att = 31,
 		.sp_gainup = 0,
 	},
 	[1] = { /* [HSS] headset_call, speaker_call */
-		.in1_gain = 2,
-		.in2_gain = 0,
-		.hp_att = 14,
+		.in1_gain = 4,
+		.in2_gain = 2,
+		.hp_att = 20,
 		.hp_gainup = 0,
 		.sp_att = 31,
 		.sp_gainup = 0,
 	},
 	[2] = { /* [HSS] headset_speaker */
-		.in1_gain = 5,
-		.in2_gain = 0,
+		.in1_gain = 6,
+		.in2_gain = 1,
 		.hp_att = 5,
 		.hp_gainup = 0,
 		.sp_att = 31,
@@ -5396,7 +5398,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SAMSUNG_JACK
 	&sec_device_jack,
 #endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 	&ram_console_device,
+#endif
 };
 
 static struct msm_gpio msm_i2c_gpios_hw[] = {
@@ -7249,6 +7253,7 @@ static void __init msm7x30_allocate_memory_regions(void)
 	pr_info("allocating %lu bytes at %p (%lx physical) for fb\n",
 		size, addr, __pa(addr));
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 	/* RAM Console can't use alloc_bootmem(), since that zeroes the
 	 * region */
 	size = MSM_RAM_CONSOLE_SIZE;
@@ -7258,6 +7263,7 @@ static void __init msm7x30_allocate_memory_regions(void)
 		size, (unsigned long)ram_console_resources[0].start);
 	/* We still have to reserve it, though */
 	reserve_bootmem(ram_console_resources[0].start,size,0);
+#endif
 }
 
 static void __init msm7x30_map_io(void)
