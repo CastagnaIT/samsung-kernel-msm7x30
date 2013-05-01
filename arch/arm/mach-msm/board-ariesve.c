@@ -180,7 +180,7 @@ static struct platform_device ion_dev;
 #endif
 
 #define PMIC_GPIO_INT		27
-#define PMIC_VREG_WLAN_LEVEL	2900
+#define PMIC_VREG_WLAN_LEVEL	2100
 #define PMIC_GPIO_SD_DET	36
 #define PMIC_GPIO_SDC4_EN_N	17  /* PMIC GPIO Number 18 */
 #define PMIC_GPIO_HDMI_5V_EN_V3 32  /* PMIC GPIO for V3 H/W */
@@ -6173,7 +6173,7 @@ static struct mmc_platform_data msm7x30_sdc1_data = {
 };
 #else
 static struct mmc_platform_data msm7x30_sdc1_data = {
-	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_27_28 | MMC_VDD_28_29,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_20_21,
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 	.status	        = wlan_status,
