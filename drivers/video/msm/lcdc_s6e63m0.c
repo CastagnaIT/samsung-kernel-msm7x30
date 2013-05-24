@@ -621,7 +621,13 @@ static int get_gamma_value_from_bl(int bl)
 	  only supported from 0 to 24 */
 
 	switch (bl) {
-	case 0 ... 29:
+	case 0 ... 9:
+		gamma_value = GAMMA_00CD;
+		break;
+	case 10 ... 19:
+		gamma_value = GAMMA_10CD;
+		break;
+	case 20 ... 29:
 		gamma_value = GAMMA_20CD;
 		break;
 	case 30 ... 39:
