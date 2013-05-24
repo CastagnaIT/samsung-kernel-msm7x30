@@ -114,6 +114,9 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
 #ifndef __HAVE_ARCH_MEMCHR
 extern void * memchr(const void *,int,__kernel_size_t);
 #endif
+#ifndef __HAVE_ARCH_SUBSTR
+extern char * substr(const char *s, int pos, int len);
+#endif
 void *memchr_inv(const void *s, int c, size_t n);
 
 extern char *kstrdup(const char *s, gfp_t gfp);
