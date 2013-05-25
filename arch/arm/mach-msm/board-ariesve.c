@@ -3427,7 +3427,7 @@ static struct i2c_board_info touchkey_info[] __initdata = {
 
 static struct regulator_bulk_data oliver_tsp_regs[] = {
 	{ .supply = "gp4", .min_uV = 1800000, .max_uV = 1800000 },
-	{ .supply = "xo_out", .min_uV = 3000000, .max_uV = 3000000 },
+	{ .supply = "xo_out", .min_uV = 2800000, .max_uV = 2800000 },
 };
 
 static int oliver_tsp_ldo_on(void)
