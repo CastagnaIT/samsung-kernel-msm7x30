@@ -839,7 +839,7 @@ void qt_CTE_Config_Init(void)
 	cte_config.idlegcafdepth = 4;///4;
 	cte_config.actvgcafdepth = 8;//63;    //8;
 
-	cte_config.voltage = 60;//0x3c;
+	cte_config.voltage = 10; //60;//0x3c; //Calculation: (Voltage 2850000-Volt.Default2700000)/10000
 
 	/* Write CTE config to chip. */
 	if (get_object_address(SPT_CTECONFIG_T28, 0) != OBJECT_NOT_FOUND)
