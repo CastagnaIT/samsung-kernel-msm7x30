@@ -1082,6 +1082,19 @@ static struct i2c_board_info si4709_info[] __initdata = {
 };
 #endif
 
+static void config_gpio_table(uint32_t *table, int len)
+{
+	int n, rc;
+	for (n = 0; n < len; n++) {
+		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
+		if (rc) {
+			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+				__func__, table[n], rc);
+			break;
+		}
+	}
+}
+
 #ifdef CONFIG_MSM_CAMERA
 
 #ifdef NOT_SET
@@ -1192,18 +1205,6 @@ static uint32_t camera_on_gpio_table[] = {
 #endif
 };
 
-static void config_gpio_table(uint32_t *table, int len)
-{
-	int n, rc;
-	for (n = 0; n < len; n++) {
-		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
-				__func__, table[n], rc);
-			break;
-		}
-	}
-}
 static int config_camera_on_gpios(void)
 {
 	config_gpio_table(camera_on_gpio_table,
@@ -1729,7 +1730,6 @@ static int __init snddev_poweramp_gpio_init(void)
 
 smps3_free:
 	regulator_put(smps3);
-out:
 	smps3 = NULL;
 	return rc;
 }
@@ -4211,20 +4211,35 @@ static struct regulator *mddi_ldo15;
 
 static int display_common_init(void)
 {
+	struct regulator_bulk_data regs[2] = {
+		{ .supply = "ldo17", .min_uV = 1800000, .max_uV = 1800000},
+		{ .supply = "ldo15", .min_uV = 3000000, .max_uV = 3000000},
+	};
+
 	int rc = 0;
 
-	mddi_ldo17 = regulator_get(NULL, "ldo17");
-	if (IS_ERR(mddi_ldo17)) {
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
+	if (rc) {
 		pr_err("%s: regulator_bulk_get failed: %d\n",
-				__func__, rc);
+			__func__, rc);
+		goto bail;
 	}
 
-	mddi_ldo15 = regulator_get(NULL, "ldo15");
-	if (IS_ERR(mddi_ldo15)) {
-		pr_err("%s: regulator_bulk_get failed: %d\n",
-				__func__, rc);
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
+	if (rc) {
+		pr_err("%s: regulator_bulk_set_voltage failed: %d\n",
+			__func__, rc);
+		goto put_regs;
 	}
 
+	mddi_ldo17 = regs[0].consumer;
+	mddi_ldo15 = regs[1].consumer;
+
+	return rc;
+
+put_regs:
+	regulator_bulk_free(ARRAY_SIZE(regs), regs);
+bail:
 	return rc;
 }
 
@@ -4374,6 +4389,10 @@ static int lcdc_common_panel_power(int on)
 	int rc, i;
 	struct msm_gpio *gp;
 
+	/* s6e63m0 panel requires to enable/disable the regulators before resetting of the display,
+	 * otherwise the switch on/off does not work properly*/
+
+	/*
 	rc = display_common_power(on);
 
 	if (rc < 0) {
@@ -4381,6 +4400,7 @@ static int lcdc_common_panel_power(int on)
 				__func__, rc);
 		return rc;
 	}
+	*/
 
 	if (on) {
 		rc = msm_gpios_enable(lcd_panel_gpios,
@@ -4406,8 +4426,6 @@ static int lcdc_panel_power(int on)
 	int flag_on = !!on;
 	static int lcdc_power_save_on;
 
-	return 0;	
-
 	if (lcdc_power_save_on == flag_on)
 		return 0;
 
@@ -4420,6 +4438,7 @@ static struct lcdc_platform_data lcdc_pdata = {
 	.lcdc_power_save   = lcdc_panel_power,
 };
 
+#ifdef CONFIG_FB_MSM_TVOUT
 static struct regulator *atv_s4, *atv_ldo9;
 
 static int __init atv_dac_power_init(void)
@@ -4491,14 +4510,15 @@ static struct tvenc_platform_data atv_pdata = {
 	.poll		 = 1,
 	.pm_vid_en	 = atv_dac_power,
 };
+#endif
 
 static void __init msm_fb_add_devices(void)
 {
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("pmdh", &mddi_pdata);
 	msm_fb_register_device("lcdc", &lcdc_pdata);
-	msm_fb_register_device("tvenc", &atv_pdata);
 #ifdef CONFIG_FB_MSM_TVOUT
+	msm_fb_register_device("tvenc", &atv_pdata);
 	msm_fb_register_device("tvout_device", NULL);
 #endif
 }
@@ -6100,8 +6120,8 @@ static int msm_sdcc_get_wpswitch(struct device *dv)
 }
 #endif
 
-extern int wlan_register_status_notify();
-extern unsigned int wlan_status();
+extern int wlan_register_status_notify(void (*callback)(int, void *), void *dev_id);
+extern unsigned int wlan_status(struct device *dev);
 
 #if defined(CONFIG_MMC_MSM_SDC1_SUPPORT)
 #if defined(CONFIG_CSDIO_VENDOR_ID) && \
@@ -6272,7 +6292,7 @@ static void __init msm7x30_init_mmc(void)
 	if (machine_is_msm7x30_fluid()) {
 		msm7x30_sdc1_data.ocr_mask =  MMC_VDD_27_28 | MMC_VDD_28_29;
 		if (msm_sdc1_lvlshft_enable()) {
-			pr_err("%s: could not enable level shift\n");
+			pr_err("%s: could not enable level shift\n", __func__);
 			goto out1;
 		}
 	}
@@ -6893,7 +6913,9 @@ static void __init msm7x30_init(void)
 #ifdef CONFIG_DEVICE_NAND
 	msm7x30_init_nand();
 #endif
-
+#ifdef CONFIG_FB_MSM_TVOUT
+	atv_dac_power_init();
+#endif
 //	sensors_ldo_init();
 	msm_fb_add_devices();
 	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
