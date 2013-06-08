@@ -76,7 +76,7 @@ static spinlock_t down_cpumask_lock;
 /*
  * The minimum amount of time to spend at a frequency before we can step up.
  */
-#define DEFAULT_UP_SAMPLE_TIME 18000
+#define DEFAULT_UP_SAMPLE_TIME 14000
 static unsigned long up_sample_time;
 
 #define DEFAULT_UP_SAMPLE_TIME_SLEEP 50000
