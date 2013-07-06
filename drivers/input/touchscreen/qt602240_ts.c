@@ -404,14 +404,14 @@ void qt_Multitouchscreen_Init(void)
 #ifdef QT_STYLUS_ENABLE
 void qt_Multitouchscreen_stylus_Init(void)
 {
-
+	/* stylus values*/
     touchscreen_config.tchthr = 25;//45;	
     touchscreen_config.movhysti = 1;
-    
-//    touchscreen_config.movhystn = 5;///1;
     touchscreen_config.movfilter = 79;//0
     touchscreen_config.numtouch= 1;
-
+	/* reset to default the onther values*/
+	touchscreen_config.movhystn = 1; //(5;///1;)
+    touchscreen_config.tchdi = 2;
     
     if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
     {
@@ -422,13 +422,16 @@ void qt_Multitouchscreen_stylus_Init(void)
 void qt_Multitouchscreen_normal_Init(void)
 {
 
-    touchscreen_config.tchthr = 40;//45;	
-    
+	if(2 != config_mode_val) {
+    touchscreen_config.tchthr = 40;//45;
+
     touchscreen_config.movhysti = 3;
-//    touchscreen_config.movhystn = 6;///1;
     touchscreen_config.movfilter = 0x2e;//0
     touchscreen_config.numtouch= MAX_USING_FINGER_NUM;
 
+    touchscreen_config.movhystn = 1; //6;///1;
+    touchscreen_config.tchdi = 2;
+	}
     
     if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
     {
@@ -2619,10 +2622,13 @@ int set_tsp_for_ta_detect(int state)
     uint8_t status;
 
     if(state) {
-		touchscreen_config.tchthr = 52;
 		noise_suppression_config.noisethr = 45;		   
 
         printk("[TSP] TA Detect!!!\n");
+
+
+		if(2 != config_mode_val) {
+		touchscreen_config.tchthr = 52;
 
         object_address = get_object_address(TOUCH_MULTITOUCHSCREEN_T9, 0);
 
@@ -2636,6 +2642,9 @@ int set_tsp_for_ta_detect(int state)
         if (status == WRITE_MEM_FAILED) {
             printk("\n[TSP][ERROR] TOUCH_MULTITOUCHSCREEN_T9 write_mem : %d\n", __LINE__);
         }
+
+		}
+		
 
         object_address = get_object_address(PROCG_NOISESUPPRESSION_T22, 0);
 
@@ -2651,11 +2660,14 @@ int set_tsp_for_ta_detect(int state)
         }    
         
     } else {
-		   touchscreen_config.tchthr = 32;
+		   
 		   noise_suppression_config.noisethr = 25;		   
 
         printk("[TSP] TA NON-Detect!!!\n");
 
+		if(2 != config_mode_val) {
+        touchscreen_config.tchthr = 32;
+        
         object_address = get_object_address(TOUCH_MULTITOUCHSCREEN_T9, 0);
 
         if (object_address == 0) {
@@ -2668,6 +2680,9 @@ int set_tsp_for_ta_detect(int state)
         if (status == WRITE_MEM_FAILED) {
             printk("\n[TSP][ERROR] TOUCH_MULTITOUCHSCREEN_T9 write_mem : %d\n", __LINE__);
         }
+		
+		}
+
 
         object_address = get_object_address(PROCG_NOISESUPPRESSION_T22, 0);
 
@@ -3501,6 +3516,10 @@ static int qt602240_resume(struct i2c_client *client)
             return -1;
     }
 
+    if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
+    {
+        printk("[TSP] resume multitouchscreen Configuration Fail!!! , Line %d \n\r", __LINE__);
+    }
     //hugh 0312
     good_check_flag=0;
 
@@ -3593,6 +3612,12 @@ static void qt602240_late_resume(struct early_suspend *h)
                 break;
         }
     }
+    
+    if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
+    {
+        printk("[TSP] resume multitouchscreen Configuration Fail!!! , Line %d \n\r", __LINE__);
+    }
+
     //hugh 0312
     good_check_flag=0;
 
@@ -5188,9 +5213,14 @@ static ssize_t qt602240_config_mode_store(struct device *dev,    struct device_a
             config_mode_val = mode;
             break;
         }
+        case 2:
         case 0: {
             if(mode != config_mode_val) {
-                printk("set normal mode\n");
+                if(2 == config_mode_val) {
+					printk("set custom mode\n");
+				} else {
+					printk("set normal mode\n");
+                }
                 qt_Multitouchscreen_normal_Init();
                 calibrate_chip();
             }
