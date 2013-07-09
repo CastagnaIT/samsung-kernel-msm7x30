@@ -66,7 +66,7 @@ uint16_t diagnostic_addr;
 #endif
 
 #ifdef _SUPPORT_MULTITOUCH_
-static report_finger_info_t fingerInfo[MAX_USING_FINGER_NUM]={ 0};
+static report_finger_info_t fingerInfo[10]={ 0}; //MAX_USING_FINGER_NUM
 static int qt_initial_ok=0;
 #endif
 
@@ -2721,7 +2721,7 @@ void TSP_forced_release(void)
 	
     input_report_key(qt602240->input_dev, BTN_TOUCH, 0);
 
-    for ( i= 1; i<MAX_USING_FINGER_NUM; i++ ) {
+    for ( i= 1; i<touchscreen_config.numtouch; i++ ) {
         if ( fingerInfo[i].pressure == -1 ) continue;
 
         fingerInfo[i].pressure = 0;
@@ -2759,7 +2759,7 @@ void TSP_forced_release_forOKkey(void)
 					
     input_report_key(qt602240->input_dev, BTN_TOUCH, 0);    
 
-    for ( i=0; i<MAX_USING_FINGER_NUM; i++ ) {
+    for ( i=0; i<touchscreen_config.numtouch; i++ ) {
         if ( fingerInfo[i].pressure == -1 ) continue;
 
         fingerInfo[i].pressure = 0;
@@ -2832,7 +2832,7 @@ void  get_message(void* data)
             //20102017 julia			
             if( quantum_msg[0] == 14 ) {
                 if((quantum_msg[1]&0x01) == 0x00) { 
-                    for ( i= 0; i<MAX_USING_FINGER_NUM; ++i ) {
+                    for ( i= 0; i<touchscreen_config.numtouch; ++i ) {
                         if ( fingerInfo[i].pressure == -1 ) continue;
 
                         if(i == 0) {
@@ -3003,7 +3003,7 @@ void  get_message(void* data)
 	
 #ifdef _SUPPORT_MULTITOUCH_
     if ( nPrevID >= id || bChangeUpDn ) {
-        for ( i= 0; i<MAX_USING_FINGER_NUM; ++i ) {
+        for ( i= 0; i<touchscreen_config.numtouch; ++i ) {
             if ( fingerInfo[i].pressure == -1 ) continue;
 
             input_report_abs(qt602240->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
@@ -3491,7 +3491,7 @@ static int qt602240_suspend(struct i2c_client *client, pm_message_t mesg)
 
     TSP_forced_release_forOKkey();
 #ifdef _SUPPORT_MULTITOUCH_
-    for (i=0; i<MAX_USING_FINGER_NUM ; i++)
+    for (i=0; i<touchscreen_config.numtouch ; i++)
         fingerInfo[i].pressure = -1;
 #endif
     LEAVE_FUNC;
@@ -3553,7 +3553,7 @@ static void qt602240_early_suspend(struct early_suspend *h)
 
     TSP_forced_release_forOKkey();
 #ifdef _SUPPORT_MULTITOUCH_
-    for (i=0; i<MAX_USING_FINGER_NUM ; i++){
+    for (i=0; i<touchscreen_config.numtouch ; i++){
         fingerInfo[i].pressure = -1;
         }
     touch_state_val=0;
@@ -5418,7 +5418,7 @@ int __init qt602240_init(void)
 #endif
 
 #ifdef _SUPPORT_MULTITOUCH_
-    for (i=0; i<MAX_USING_FINGER_NUM ; i++)        // touchscreen_config.numtouch is 5
+    for (i=0; i<touchscreen_config.numtouch ; i++)        // touchscreen_config.numtouch is 5
         fingerInfo[i].pressure = -1;
 #endif
     return 0;
