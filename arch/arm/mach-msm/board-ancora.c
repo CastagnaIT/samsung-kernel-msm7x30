@@ -147,7 +147,11 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#define MSM_PMEM_SF_SIZE	0x1A00000
+#ifdef CONFIG_BIGMEM_MODE
+#define MSM_PMEM_SF_SIZE	0X1600000
+#else
+#define MSM_PMEM_SF_SIZE	0x1800000 /*stock value 0x1A00000*/
+#endif
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
@@ -169,7 +173,11 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x2800000
+#ifdef CONFIG_BIGMEM_MODE
+#define MSM_PMEM_ADSP_SIZE		0X1B00000
+#else
+#define MSM_PMEM_ADSP_SIZE		0x29D0000  /*stock value 0x2D00000*/
+#endif
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
 
