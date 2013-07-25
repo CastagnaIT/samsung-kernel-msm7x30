@@ -143,7 +143,7 @@ struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
 #ifdef CONFIG_BIGMEM_MODE
-#define MSM_PMEM_SF_SIZE	0X1400000 //0X1600000
+#define MSM_PMEM_SF_SIZE	0X1600000
 #else
 #define MSM_PMEM_SF_SIZE	0x1600000 //0x1800000 /*stock value 0x1A00000*/
 #endif
