@@ -13,6 +13,11 @@
 #ifndef __LINUX_QT602240_TS_H
 #define __LINUX_QT602240_TS_H
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+#include <linux/earlysuspend.h>
+#include <linux/input.h>
+#endif
+
 /* Orient */
 #define QT602240_NORMAL			0x0
 #define QT602240_DIAGONAL		0x1
@@ -22,6 +27,12 @@
 #define QT602240_ROTATED_90		0x5
 #define QT602240_ROTATED_180		0x6
 #define QT602240_DIAGONAL_COUNTER	0x7
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+extern void sweep2wake_setdev(struct input_dev * input_device);
+extern int sweep2wake_s2w_switch;
+extern bool sweep2wake_enable_gpio_input_event;
+#endif
 
 /* The platform data for the AT42QT602240/ATMXT224 touchscreen driver */
 struct qt602240_platform_data {
@@ -50,7 +61,7 @@ struct qt602240_platform_data {
 
 #ifdef QT_FIRMUP_ENABLE
 #define QT_ATCOM_TEST
-unsigned char QT602240_firmware[] = {
+static unsigned char QT602240_firmware[] = {
 0x00,0xE2,0xC1,0xFF,0x39,0x12,0x9B,0xE9,
 0xA7,0x48,0x06,0x7A,0x92,0xB4,0xF2,0xF0,
 0x7D,0xA3,0x75,0xF8,0xDB,0xCA,0x9F,0x62,
@@ -4633,7 +4644,7 @@ unsigned char QT602240_firmware[] = {
 
 #define NUM_OF_I2C_ADDR    4
 
-uint8_t i2c_addresses[] =
+static uint8_t i2c_addresses[] =
 {
     I2C_APPL_ADDR_0,
     I2C_APPL_ADDR_1,
@@ -4645,7 +4656,7 @@ static	void	__iomem		*gpio_pend_mask_mem;
 
 #define 	INT_PEND_BASE	0xE0200A44
 
-uint8_t QT_i2c_address;
+static uint8_t QT_i2c_address;
 
 void QT_reprogram(void);
 uint8_t QT_Boot_no_reset(void);
@@ -5308,7 +5319,7 @@ struct qt602240_data {
 	struct input_dev *input_dev;
 	struct work_struct ts_event_work;
 	unsigned int irq;
-	struct early_suspend	early_suspend;	
+	struct early_suspend		early_suspend;	
 };
 
 /*------------------------------ functions prototype -----------------------------------*/

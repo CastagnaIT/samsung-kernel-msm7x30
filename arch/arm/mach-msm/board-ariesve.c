@@ -116,6 +116,9 @@
 #include <asm/atomic.h>
 #include <linux/err.h>
 #endif
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+#include <linux/gpio_event.h>
+#endif
 
 #define GPIO_BT_WAKE		147
 #define GPIO_BT_HOST_WAKE	145
@@ -878,6 +881,7 @@ static const unsigned int surf_keymap[] = {
 	KEY(11, 7, KEY_RIGHTSHIFT),
 };
 
+/* pmic input mode */
 static const unsigned int ariesve_keymap[] = {
 	KEY(0, 0, KEY_RESERVED),
 	KEY(0, 1, KEY_RESERVED),
@@ -893,7 +897,7 @@ static struct matrix_keymap_data ariesve_keymap_data = {
 	.keymap		= ariesve_keymap,
 };
 
-static struct pm8xxx_keypad_platform_data ariesve_keypad_data = {
+static struct pm8xxx_keypad_platform_data ariesve_keypad_data_pmic = {
 	.input_name		= "ariesve_keypad",
 	.input_phys_device	= "ariesve_keypad/input0",
 	.num_rows		= 5,
@@ -906,6 +910,40 @@ static struct pm8xxx_keypad_platform_data ariesve_keypad_data = {
 	.wakeup			= 1,
 	.keymap_data            = &ariesve_keymap_data,
 };
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+/* gpio interrupt input mode */
+#define GPIO_KEYPAD_POWER_KEY     200
+static struct gpio_event_direct_entry gpio_key_gpio_map[] = {
+        {GPIO_KEYPAD_POWER_KEY, KEY_POWER},
+};
+
+static struct gpio_event_input_info ariesve_keypad_gpio_info = {
+        .info.func = gpio_event_input_func,
+        .flags = 0,
+        .type = EV_KEY,
+        .keymap = gpio_key_gpio_map,
+        .keymap_size = ARRAY_SIZE(gpio_key_gpio_map),
+};
+
+static struct gpio_event_info *ariesve_keypad_info[] = {
+	&ariesve_keypad_gpio_info.info,
+};
+
+static struct gpio_event_platform_data ariesve_keypad_data = {
+	.name = "ariesve-keypad",
+	.info = ariesve_keypad_info,
+	.info_count = ARRAY_SIZE(ariesve_keypad_info)
+};
+
+static struct platform_device ariesve_keypad_input_device = {
+	.name = GPIO_EVENT_DEV_NAME,
+	.id = 0,
+	.dev	= {
+		.platform_data	= &ariesve_keypad_data,
+	},
+};
+#endif
 
 static struct pm8058_pwm_pdata pm8058_pwm_data = {
 	.config         = pm8058_pwm_config,
@@ -2047,7 +2085,10 @@ static int __init buses_init(void)
 		pr_err("%s: gpio_tlmm_config (gpio=%d) failed\n",
 		       __func__, PMIC_GPIO_INT);
 
-		pm8058_7x30_data.keypad_pdata = &ariesve_keypad_data;
+	pm8058_7x30_data.keypad_pdata = &ariesve_keypad_data_pmic;
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	platform_device_register(&ariesve_keypad_input_device);
+#endif
 
 	return 0;
 }

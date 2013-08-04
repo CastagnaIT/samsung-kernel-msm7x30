@@ -28,6 +28,10 @@
 #include <linux/rcupdate.h>
 #include "input-compat.h"
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+#include <linux/i2c/qt602240_ts.h>
+#endif
+
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
@@ -350,11 +354,18 @@ void input_event(struct input_dev *dev,
 	unsigned long flags;
 
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		add_input_randomness(type, code, value);
-		input_handle_event(dev, type, code, value);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+		if ((!strcmp(dev->name, "ariesve-keypad") && sweep2wake_enable_gpio_input_event)
+			|| ((strcmp(dev->name, "ariesve-keypad")) && !sweep2wake_enable_gpio_input_event)) {
+#endif
+	
+			spin_lock_irqsave(&dev->event_lock, flags);
+			add_input_randomness(type, code, value);
+			input_handle_event(dev, type, code, value);
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+		}
+#endif
 	}
 }
 EXPORT_SYMBOL(input_event);

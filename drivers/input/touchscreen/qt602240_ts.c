@@ -38,7 +38,10 @@
 #include <linux/hrtimer.h>
 //#include <mach/vreg.h>
 #include <linux/device.h>
-
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+#include <linux/wakelock.h>
+#include <linux/ctype.h>
+#endif
 
 #define TSP_SDA 71
 #define TSP_SCL 70
@@ -171,6 +174,121 @@ uint8_t touch_key_value = 0;
 #endif
 
 /*------------------------------ for tunning ATmel - end ----------------------------*/
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+/* Sweep to wake values are 
+ * 0 = no sweep2wake
+ * 1 = sweep2wake with no backlight
+ * 2 = sweep2wake with backlight
+ */
+
+/* sweep2wake_enable_gpio_input_event variable is a workaround becouse
+ * sweep2wake to work requires the gpio interrupt input mode for the keypad,
+ * currently ariesve board use the legacy keypad mode,
+ * i was able to extrapolate the gpio power key to allow wake up the device via
+ * gpio interrupt mode that have included in the board,
+ * this cause a double signal when pressing the phisycal key
+ * (because there are two ways to handle input active),
+ * and causing trouble when going in standby/resume.
+ * To remedy this problem i hack the input driver to force the excutes
+ * the event of gpio interrupt mode only by sweep2wake.*/
+extern bool sweep2wake_enable_gpio_input_event = false;
+EXPORT_SYMBOL(sweep2wake_enable_gpio_input_event);
+
+extern int sweep2wake_s2w_switch;
+EXPORT_SYMBOL(sweep2wake_s2w_switch);
+
+/* s2w_wake_lock wakelock is necessary because the suspend mode of this board,
+ * turn off all devices the only workaround is apply a wakelock to make available
+ * the S2W for a few minutes after standby, later will be disabled in any case,
+ * but if there is some activity such as alarms and messages is reactivated automatically.
+ */
+static struct wake_lock s2w_wake_lock;
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_DISABLED
+int s2w_switch = 0;
+int s2w_temp = 0;
+sweep2wake_s2w_switch = 0;
+#elif defined(CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_ENABLED)
+int s2w_switch = 1;
+int s2w_temp = 1;
+sweep2wake_s2w_switch = 1;
+#elif defined(CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_ENABLED_WITH_BACKLIGHT)
+int s2w_switch = 2;
+int s2w_temp = 2;
+sweep2wake_s2w_switch = 2;
+#endif
+bool scr_suspended = false, exec_count = true, s2w_switch_changed = false;
+bool scr_on_touch = false, barrier[2] = {false, false};
+static struct input_dev * sweep2wake_pwrdev;
+int barrier1 = 0, barrier2 = 0, barrier3 = 0, barrier4 = 0;
+static DEFINE_MUTEX(pwrlock);
+
+typedef struct {
+	int		x;
+    char	name[10];
+} button;
+
+static button buttons[] = {{163, "HOME"},
+							{326, "MENU"},
+							{489, "BACK"}};
+
+int s2w_startbutton = 0;
+int s2w_endbutton = 0;
+
+int sweep2wake_buttonset(const char * button_name) {
+	int i = 0;
+	int future_button = -1;
+	char temp_button_name[2] = "";
+	char temp_button_name_from_array[2] = "";
+
+	strncpy(temp_button_name,button_name,1);
+	temp_button_name[1] = '\0';
+
+	for (i = 0; i < sizeof(buttons)/sizeof(button); i++)
+	{
+		strncpy(temp_button_name_from_array,buttons[i].name,1);
+		temp_button_name_from_array[1] = '\0';
+
+		if (strcmp(temp_button_name,temp_button_name_from_array) == 0)
+			future_button = buttons[i].x;
+
+		temp_button_name_from_array[0] = tolower(temp_button_name_from_array[0]);
+
+		if (strcmp(temp_button_name,temp_button_name_from_array) == 0)
+			future_button = buttons[i].x;
+	}
+
+	return future_button;
+}
+
+extern void sweep2wake_setdev(struct input_dev * input_device) {
+	sweep2wake_pwrdev = input_device;
+	return;
+}
+EXPORT_SYMBOL(sweep2wake_setdev);
+
+static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
+	sweep2wake_enable_gpio_input_event = true;
+	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 1);
+	input_event(sweep2wake_pwrdev, EV_SYN, SYN_REPORT, 0);
+	msleep(100);
+	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 0);
+	input_event(sweep2wake_pwrdev, EV_SYN, SYN_REPORT, 0);
+	msleep(100);
+	sweep2wake_enable_gpio_input_event = false;
+	mutex_unlock(&pwrlock);
+	return;
+}
+static DECLARE_WORK(sweep2wake_presspwr_work, sweep2wake_presspwr);
+
+void sweep2wake_pwrtrigger(void) {
+	if (mutex_trylock(&pwrlock)) {
+		schedule_work(&sweep2wake_presspwr_work);
+	}
+	return;
+}
+#endif
 
 #define __QT_CONFIG__
 /*****************************************************************************
@@ -1942,6 +2060,25 @@ void quantum_touch_probe(void)
         return ;
     }
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	wake_lock_init(&s2w_wake_lock, WAKE_LOCK_SUSPEND, "s2w_wake_lock"); 
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_START
+	s2w_startbutton = sweep2wake_buttonset(CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_START);
+#endif /* CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_START */
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_END
+	s2w_endbutton = sweep2wake_buttonset(CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_END);
+#endif /* CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE_END */
+
+	barrier1 = s2w_startbutton - 163; //0;
+	if (barrier1 == 0)
+		barrier1 = 25; //the +25 is to make it easier to swipe, start from the edge of the screen is difficult
+	barrier2 = ((s2w_endbutton - s2w_startbutton) / 3) + s2w_startbutton;
+	barrier3 = (((s2w_endbutton - s2w_startbutton) / 3) * 2) + s2w_startbutton;
+	barrier4 = s2w_endbutton + 163; //652;
+#endif /* CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE */
+
     /* Get and show the version information. */
     get_family_id(&family_id);
     get_variant_id(&variant);
@@ -2845,7 +2982,7 @@ void  get_message(void* data)
                         input_report_abs(qt602240->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].size);
 						input_report_abs(qt602240->input_dev, ABS_MT_TRACKING_ID, i); // i = Finger ID 
                         input_mt_sync(qt602240->input_dev);
-            
+
                         if ( fingerInfo[i].pressure == 0 ) fingerInfo[i].pressure= -1;
                         else if( fingerInfo[i].pressure > 0 ) one_touch_input_flag++;//hugh 0312
                     }
@@ -2926,6 +3063,16 @@ void  get_message(void* data)
                 fingerInfo[id].pressure= 0;
                 bChangeUpDn= 1;
 		   touch_state_val = 0;
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+		 	/* if finger released, reset count & barriers */
+			if ((s2w_switch > 0)) {
+				exec_count = true;
+				barrier[0] = false;
+				barrier[1] = false;
+				scr_on_touch = false;
+				//printk(KERN_INFO "[sweep2wake]: finger released, reset s2w\n");
+			}
+#endif
             }
             else if ( (quantum_msg[1] & 0x80) && (quantum_msg[1] & 0x40) ) {   // Detect & Press
                 touch_message_flag = 1; //20100217 julia
@@ -2981,6 +3128,16 @@ void  get_message(void* data)
                 press = 0;
                 print_msg();
                 input_report_key(qt602240->input_dev, BTN_TOUCH, 0);
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+		 	/* if finger released, reset count & barriers */
+			if ((s2w_switch > 0)) {
+				exec_count = true;
+				barrier[0] = false;
+				barrier[1] = false;
+				scr_on_touch = false;
+				//printk(KERN_INFO "[sweep2wake]: finger released, reset s2w\n");
+			}
+#endif
             }
 #endif      
 
@@ -3016,6 +3173,59 @@ void  get_message(void* data)
 #ifdef KERNEL_DEBUG_SEC
 			if(bChangeUpDn)
 				printk("[TSP] [%d] %d	%d	%d\n", i, fingerInfo[id].x, fingerInfo[id].y, fingerInfo[i].pressure);
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+			//left -> right
+			//i = finger id
+			if((i == 0) && (scr_suspended == true) && (s2w_switch > 0)) {
+				//printk("[sweep2wake] X(%d) Y(%d)\n", fingerInfo[i].x, fingerInfo[i].y);
+				if ((barrier[0] == true) ||
+				   ((fingerInfo[i].x > barrier1) &&
+				    (fingerInfo[i].x < barrier2) &&
+				    (fingerInfo[i].y > 650))) {					
+					barrier[0] = true;
+					if ((barrier[1] == true) ||
+					   ((fingerInfo[i].x > barrier2) &&
+					    (fingerInfo[i].x < barrier3) &&
+					    (fingerInfo[i].y > 650))) {
+						barrier[1] = true;
+						if ((fingerInfo[i].x > barrier3) &&
+						    (fingerInfo[i].y > 650)) {
+							if (exec_count) {
+								printk(KERN_INFO "[sweep2wake]: POWER ON.\n");
+								sweep2wake_pwrtrigger();
+								exec_count = false;
+								break;
+							}
+						}
+					}
+				}
+			//right -> left
+			} else if ((s2w_switch > 0) && (scr_suspended == false) && (i == 0)) {
+				scr_on_touch=true;
+				if ((barrier[0] == true) ||
+				   ((fingerInfo[i].x < barrier4) &&
+			    	(fingerInfo[i].x > barrier3) &&
+				    (fingerInfo[i].y > 650))) {
+					barrier[0] = true;
+					if ((barrier[1] == true) ||
+					   ((fingerInfo[i].x < barrier3) &&
+					    (fingerInfo[i].x > barrier2) &&
+					    (fingerInfo[i].y > 650))) {
+						barrier[1] = true;
+						if ((fingerInfo[i].x < barrier2) &&
+						    (fingerInfo[i].y > 650)) {
+							if (exec_count) {
+								printk(KERN_INFO "[sweep2wake]: POWER OFF.\n");
+								sweep2wake_pwrtrigger();
+								exec_count = false;
+								break;
+							}
+						}
+					}
+				}
+			}
 #endif
 
             if ( fingerInfo[i].pressure == 0 ) fingerInfo[i].pressure= -1;
@@ -3282,6 +3492,7 @@ irqreturn_t qt602240_irq_handler(int irq, void *dev_id)
 
 	struct qt602240_data *ts = dev_id;
 
+	//printk(" [TSP] IRQ HANDLER\n");
 	disable_irq_nosync(ts->client->irq);
 	queue_work(qt602240_wq, &ts->ts_event_work);
 
@@ -3407,7 +3618,7 @@ int qt602240_probe(struct i2c_client *client,
 //	ret = request_threaded_irq(qt602240->client->irq, NULL, qt602240_irq_handler , IRQF_DISABLED, "qt602240 irq", qt602240);
 //	ret = request_irq(qt602240->client->irq, qt602240_irq_handler, IRQF_ONESHOT | IRQF_DISABLED | IRQF_TRIGGER_LOW , qt602240->client->name, qt602240);
 
-	ret = request_irq(qt602240->client->irq, qt602240_irq_handler, IRQF_ONESHOT | IRQF_DISABLED | IRQF_TRIGGER_LOW , qt602240->client->name, qt602240);
+	ret = request_irq(qt602240->client->irq, qt602240_irq_handler, IRQF_ONESHOT | IRQF_TRIGGER_LOW , qt602240->client->name, qt602240);
 //    ret = request_irq(qt602240->client->irq, qt602240_irq_handler, IRQF_TRIGGER_FALLING, qt602240->client->name, qt602240);
 // 867035
 
@@ -3458,6 +3669,10 @@ static int qt602240_remove(struct i2c_client *client)
 #ifdef USE_TSP_EARLY_SUSPEND
     unregister_early_suspend(&data->early_suspend);
 #endif    /* CONFIG_HAS_EARLYSUSPEND */
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	wake_lock_destroy(&s2w_wake_lock);
+#endif
 
     free_irq(data->irq, data);
     free_irq(qt602240->client->irq, 0);
@@ -3537,8 +3752,21 @@ static void qt602240_early_suspend(struct early_suspend *h)
     int i=0;
 
     ENTER_FUNC;
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+    	scr_suspended = true;
+	if (s2w_switch > 0) {
+		enable_irq_wake(qt602240->client->irq);
+		printk(KERN_INFO "[sweep2wake]: suspend but keep interupt wake going.\n");
+ 	} else {
+#endif
     disable_irq(qt602240->client->irq);
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	}
+#endif
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	if (s2w_switch == 0) {
+#endif
     /* Set power config. */
     /* Set Idle Acquisition Interval to 32 ms. */
     power_config_sleep.idleacqint = 0;
@@ -3550,6 +3778,9 @@ static void qt602240_early_suspend(struct early_suspend *h)
         /* "Power config write failed!\n" */
         printk("\n[TSP][ERROR] line : %d\n", __LINE__);
     }
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+ 	}
+#endif
 
     TSP_forced_release_forOKkey();
 #ifdef _SUPPORT_MULTITOUCH_
@@ -3569,13 +3800,26 @@ static void qt602240_early_suspend(struct early_suspend *h)
 	gpio_configure( TSP_SDA, GPIOF_DRIVE_OUTPUT );
 	gpio_configure( TSP_INT, GPIOF_INPUT );
 */
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	if (s2w_switch == 0) {
+#endif
 	gpio_set_value( TSP_SCL , 0 ); 
 	gpio_set_value( TSP_SDA , 0 ); 
 	gpio_set_value( TSP_INT , 0 ); 
 
      gpio_set_value_cansleep(TSP_LDO_ON, 0);	
-	
-    
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+ 	}
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	if (s2w_switch != 0) {
+	printk(KERN_DEBUG "[sweep2wake]: get wake_lock\n");
+
+	if (!wake_lock_active(&s2w_wake_lock))
+		wake_lock_timeout(&s2w_wake_lock, (100*HZ));
+	}
+#endif
     LEAVE_FUNC;
 }
 
@@ -3584,21 +3828,37 @@ static void qt602240_late_resume(struct early_suspend *h)
     int ret,i;
 
     ENTER_FUNC;
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+    	scr_suspended = false;
+	if (s2w_switch > 0) {
+    		disable_irq_wake(qt602240->client->irq);
+		printk(KERN_INFO "[sweep2wake]: resume but disable interupt wake.\n");
+  	}
+#endif
 
 //    gpio_set_value(GPIO_TOUCH_EN, 1);
 //    msleep(70);
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	if (s2w_switch == 0) {
+#endif
 	gpio_set_value_cansleep(TSP_LDO_ON, 1);
 	gpio_set_value( TSP_SCL , 1 ); 
 	gpio_set_value( TSP_SDA , 1 ); 
 	gpio_set_value( TSP_INT , 1 ); 
 //	touch_power_onoff( 1 );
 	msleep(100);
-
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	}
+#endif
 
 //    s3c_gpio_cfgpin(GPIO_TOUCH_INT, S3C_GPIO_SFN(0xf));
 //	s3c_gpio_cfgpin(TSP_INT, S3C_GPIO_SFN(0xf));
 //    s3c_gpio_setpull(TSP_INT, S3C_GPIO_PULL_NONE);
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	if (s2w_switch == 0) {
+#endif
 	power_config.idleacqint = 64;
 	power_config.actvacqint = 255;
 	power_config.actv2idleto = 50;
@@ -3612,7 +3872,11 @@ static void qt602240_late_resume(struct early_suspend *h)
                 break;
         }
     }
-    
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	}
+#endif
+
     if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
     {
         printk("[TSP] resume multitouchscreen Configuration Fail!!! , Line %d \n\r", __LINE__);
@@ -3623,8 +3887,29 @@ static void qt602240_late_resume(struct early_suspend *h)
 
     msleep(20);
     calibrate_chip();
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	if (s2w_switch == 0) {
+#endif
     enable_irq(qt602240->client->irq);
-    
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	}
+	if (s2w_switch_changed == true) {
+		s2w_switch = s2w_temp;
+		sweep2wake_s2w_switch = s2w_temp;
+		s2w_switch_changed = false;
+	}	
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	if (s2w_switch != 0) {
+		if (wake_lock_active(&s2w_wake_lock)) {
+			printk(KERN_DEBUG "[sweep2wake]: clear wake_lock\n");
+			wake_unlock(&s2w_wake_lock);
+		}
+	}
+#endif
+
     LEAVE_FUNC;
 }
 #endif    // End of USE_TSP_EARLY_SUSPEND
@@ -4093,6 +4378,164 @@ static ssize_t setup_store(
 {
     return size;
 }
+
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+static ssize_t atmel_sweep2wake_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+	
+	if (s2w_switch == s2w_temp )
+		count += sprintf(buf, "%d\n", s2w_switch);
+	else
+		count += sprintf(buf, "%d->%d\n", s2w_switch, s2w_temp);
+
+	return count;
+}
+
+static ssize_t atmel_sweep2wake_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] >= '0' && buf[0] <= '2' && buf[1] == '\n')
+		if (s2w_switch != buf[0] - '0') {
+			s2w_temp = buf[0] - '0';
+			if (scr_suspended == false) {
+				s2w_switch = s2w_temp;
+				sweep2wake_s2w_switch = s2w_temp;
+			}
+			else 
+				s2w_switch_changed = true;
+		}
+
+	if (s2w_temp == 0) 
+		printk(KERN_INFO "[sweep2wake]: Disabled.\n");
+	else if (s2w_temp == 1)
+		printk(KERN_INFO "[sweep2wake]: Enabled.\n");
+	else if (s2w_temp == 2) 
+		printk(KERN_INFO "[sweep2wake]: Enabled with Backlight.\n");
+
+	return count;
+}
+
+static DEVICE_ATTR(sweep2wake, (S_IWUSR|S_IRUGO), atmel_sweep2wake_show, atmel_sweep2wake_dump);
+
+static ssize_t atmel_sweep2wake_availablebuttons_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i = 0;
+	size_t count = 0;
+
+	for (i = 0; i < sizeof(buttons)/sizeof(button); i++)
+	{
+		count += sprintf(&buf[count], "%s ",buttons[i].name);
+	}
+
+	count += sprintf(&buf[count], "\n");
+
+	return count;
+}
+static DEVICE_ATTR(sweep2wake_availablebuttons, S_IRUGO, atmel_sweep2wake_availablebuttons_show, NULL);
+
+static ssize_t atmel_sweep2wake_startbutton_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i = 0;
+	size_t count = 0;
+	bool found = false;
+
+	for (i = 0; i < sizeof(buttons)/sizeof(button); i++)
+	{
+		if (s2w_startbutton == buttons[i].x) {				
+			count += sprintf(buf, "%s\n",buttons[i].name);
+			found = true;
+		}
+	}
+	
+	if (!found) 
+		count += sprintf(buf, "%s\n","UNKNOWN");
+
+	return count;
+}
+
+static ssize_t atmel_sweep2wake_startbutton_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int s2w_tempbutton = 0;
+
+	s2w_tempbutton = sweep2wake_buttonset(buf);
+	if (s2w_tempbutton == -1)
+		return -EINVAL;;
+
+	if ( s2w_tempbutton == s2w_endbutton )
+		return count;
+
+	if ( s2w_tempbutton > s2w_endbutton ) {
+		s2w_startbutton = s2w_endbutton;	
+		s2w_endbutton = s2w_tempbutton;
+	} else 
+		s2w_startbutton = s2w_tempbutton;
+
+	barrier1 = s2w_startbutton - 163; //0;
+	if (barrier1 == 0)
+		barrier1 = 25; //the +25 is to make it easier to swipe, start from the edge of the screen is difficult
+	barrier2 = ((s2w_endbutton - s2w_startbutton) / 3) + s2w_startbutton;
+	barrier3 = (((s2w_endbutton - s2w_startbutton) / 3) * 2) + s2w_startbutton;
+	barrier4 = s2w_endbutton + 163; //652;
+
+	return count;
+}
+
+static DEVICE_ATTR(sweep2wake_startbutton, (S_IWUSR|S_IRUGO), atmel_sweep2wake_startbutton_show, atmel_sweep2wake_startbutton_dump);
+
+static ssize_t atmel_sweep2wake_endbutton_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i = 0;
+	size_t count = 0;
+	bool found = false;
+
+	for (i = 0; i < sizeof(buttons)/sizeof(button); i++)
+	{
+		if (s2w_endbutton == buttons[i].x) {				
+			count += sprintf(buf, "%s\n",buttons[i].name);
+			found = true;
+		}
+	}
+	
+	if (!found) 
+		count += sprintf(buf, "%s\n","UNKNOWN");
+
+	return count;
+}
+
+static ssize_t atmel_sweep2wake_endbutton_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int s2w_tempbutton = 0;
+
+	s2w_tempbutton = sweep2wake_buttonset(buf);
+	if (s2w_tempbutton == -1)
+		return -EINVAL;;
+
+	if ( s2w_tempbutton == s2w_startbutton )
+		return count;
+
+	if ( s2w_tempbutton < s2w_startbutton ) {
+		s2w_endbutton = s2w_startbutton;	
+		s2w_startbutton = s2w_tempbutton;
+	} else 
+		s2w_endbutton = s2w_tempbutton;
+
+	barrier1 = s2w_startbutton - 163; //0;
+	barrier2 = ((s2w_endbutton - s2w_startbutton) / 3) + s2w_startbutton;
+	barrier3 = (((s2w_endbutton - s2w_startbutton) / 3) * 2) + s2w_startbutton;
+	barrier4 = s2w_endbutton + 163; //652;
+
+	return count;
+}
+
+static DEVICE_ATTR(sweep2wake_endbutton, (S_IWUSR|S_IRUGO),	atmel_sweep2wake_endbutton_show, atmel_sweep2wake_endbutton_dump);
+#endif
 
 static DEVICE_ATTR(gpio, S_IRUGO | S_IWUSR, gpio_show, gpio_store);
 static DEVICE_ATTR(i2c, S_IRUGO | S_IWUSR, i2c_show, i2c_store);
@@ -5313,6 +5756,16 @@ int __init qt602240_init(void)
     ts_dev = device_create(sec_class, NULL, 0, NULL, "ts");
     if (IS_ERR(ts_dev))
         pr_err("Failed to create device(ts)!\n");
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+	if (device_create_file(ts_dev, &dev_attr_sweep2wake) < 0)
+        pr_err("Failed to create device file(%s)!\n", dev_attr_sweep2wake.attr.name);
+	if (device_create_file(ts_dev, &dev_attr_sweep2wake_startbutton) < 0)
+        pr_err("Failed to create device file(%s)!\n", dev_attr_sweep2wake_startbutton.attr.name);
+	if (device_create_file(ts_dev, &dev_attr_sweep2wake_endbutton) < 0)
+        pr_err("Failed to create device file(%s)!\n", dev_attr_sweep2wake_endbutton.attr.name);
+	if (device_create_file(ts_dev, &dev_attr_sweep2wake_availablebuttons) < 0)
+        pr_err("Failed to create device file(%s)!\n", dev_attr_sweep2wake_availablebuttons.attr.name);
+#endif
     if (device_create_file(ts_dev, &dev_attr_gpio) < 0)
         pr_err("Failed to create device file(%s)!\n", dev_attr_gpio.attr.name);
     if (device_create_file(ts_dev, &dev_attr_i2c) < 0)

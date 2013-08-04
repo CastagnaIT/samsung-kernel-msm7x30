@@ -50,6 +50,10 @@
 #include <linux/phantom_kp_filter.h>
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+#include <linux/i2c/qt602240_ts.h>
+#endif
+
 #define SCANCODE_MASK		0x07
 #define UPDOWN_EVENT_MASK	0x08
 #define ESD_STATE_MASK		0x10
@@ -459,7 +463,11 @@ static void cypress_touchkey_early_resume(struct early_suspend *h)
 
 	printk("[TSK] +%s\n", __func__);
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	if (sweep2wake_s2w_switch != 1) {
+#endif
 	// Avoid race condition with LED notification disable
+	
 	devdata->pdata->touchkey_onoff(TOUCHKEY_ON);
 	if (i2c_touchkey_write_byte(devdata, devdata->backlight_on)) {
 		devdata->is_dead = true;
@@ -468,13 +476,23 @@ static void cypress_touchkey_early_resume(struct early_suspend *h)
 				" to commands, disabling\n", __func__);
 		return;
 	}
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+ 	}
+#endif
+
 	devdata->is_dead = false;
 	enable_irq(devdata->client->irq);
 	devdata->is_powering_on = false;
 	devdata->is_sleeping = false;
 
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+  	if (sweep2wake_s2w_switch != 1) {
+#endif
 	/* Set the timeout of touchkeys backlight */
 	backlight_set_timeout();
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_SWEEP2WAKE
+ 	}
+#endif
 
 #ifdef CONFIG_GENERIC_BLN
 	/* release the possible pending wakelock for bln */
